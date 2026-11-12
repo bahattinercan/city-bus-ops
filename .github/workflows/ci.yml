@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    name: verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify (lint + typecheck + test + build)
+        run: pnpm verify
+
+  database:
+    name: database (postgres + postgis)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_DB: citybus
+          POSTGRES_USER: citybus
+          POSTGRES_PASSWORD: citybus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U citybus -d citybus"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Migrate
+        env:
+          DATABASE_URL: postgres://citybus:citybus@127.0.0.1:5432/citybus
+        run: pnpm db:migrate
+
+      - name: Test against the database
+        env:
+          DATABASE_URL: postgres://citybus:citybus@127.0.0.1:5432/citybus
+        run: pnpm test
