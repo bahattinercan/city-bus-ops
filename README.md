@@ -61,8 +61,11 @@ checks: `docs/06-deploy.md`.
 ## Verification
 
 ```bash
-pnpm verify     # lint + typecheck + test + build
+pnpm verify                                  # lint + typecheck + test + build
+BASE=http://127.0.0.1:3000 scripts/smoke.sh  # end-to-end against a running server
 ```
+
+Test accounts, seeded demo data and the walkthrough: [TESTING.md](TESTING.md).
 
 Database integration tests run only when `DATABASE_URL` is set; otherwise they skip.
 
@@ -136,8 +139,11 @@ bağlandığını gösteren canlı kontrol listesidir.
 ## Doğrulama
 
 ```bash
-pnpm verify     # lint + typecheck + test + build
+pnpm verify                                  # lint + typecheck + test + build
+BASE=http://127.0.0.1:3000 scripts/smoke.sh  # çalışan sunucuya karşı uçtan uca
 ```
+
+Test hesapları, demo veri ve elle gezinme: [TESTING.md](TESTING.md).
 
 Veritabanı entegrasyon testleri yalnız `DATABASE_URL` tanımlıysa koşar, aksi halde atlanır.
 
