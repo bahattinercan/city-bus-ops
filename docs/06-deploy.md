@@ -72,8 +72,20 @@ cd /srv/citybus && git pull && docker compose up -d --build
 
 Migrations are additive; take a backup first (`scripts/backup.sh`) as with any schema change.
 
-## Not verified on the development machine
+## Verification record
 
-The Windows workstation has no Docker, so the image build was not executed there. Steps to
-prove it on the Mint node: `docker compose up -d --build`, then
-`curl -fsS localhost:3000/api/health` and a login. Record the result here when it is run.
+Run on the Mint node (`serverPC`) on 2026-11-12, from a clean copy of the repository
+(`git archive HEAD`), with a fresh volume:
+
+| Check | Result |
+| --- | --- |
+| `docker compose up -d --build` | image built in 65 s, both containers `healthy` |
+| `GET /api/health` | `200` `{"status":"ok","database":"up","latencyMs":1}` |
+| `GET /login` | `200`, form action posts `303` and sets the session cookie |
+| Dashboard after login | `200`, role shown as `planlama` |
+| `GET /api/gtfs` | `200`, 156 KB zip generated from the seeded demo timetable |
+| Seeded data | 45 vehicles, 12 routes, 679 trips, 20 drivers |
+
+The stack was stopped afterwards (`docker compose down`, volume kept). The Windows
+workstation has no Docker, so this was the only environment where the image could be built;
+it is recorded here because "it should work" is not evidence.
