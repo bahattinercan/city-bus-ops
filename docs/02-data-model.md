@@ -42,8 +42,25 @@ Every extension row keeps the **raw** text it came from (`raw` column). An unexp
 is data, not a bug — this is how the previous system's unanswered questions
 (`9AT`, `1A`, `12G`, `12P`) stop being blockers.
 
-## Tables (M0 state)
+## Tables (M1 state)
 
-`organisation`, `depot`, `vehicle` — see `packages/db/src/schema.ts`. M1 adds routes, stops
-(PostGIS geometry), trips, blocks, runs, duties, rosters, absences, plan versions, rule
-catalogue and audit log.
+| Group | Tables |
+| --- | --- |
+| Tenancy & fleet | `organisation` (holds the rotation anchor week), `depot`, `vehicle` (`source` keeps printed vs handwritten plates), `driver` |
+| Network & timetable | `route`, `stop`, `route_stop`, `trip` (`start_minute` may exceed 1440 for after-midnight trips) |
+| Planning | `duty_group` (`reference_day_index` = legacy `g0`), `plan_version` (draft/published/archived, one per week), `assignment` (one per vehicle-day), `standby`, `cell_note` |
+| People | `roster_entry`, `absence`, `swap_request`, `defect_report`, `app_user` |
+| Control | `rule_violation`, `audit_log` |
+
+Stops currently carry `latitude`/`longitude` as text; PostGIS geometry joins when the map
+editor lands. The `x_` prefix from the earlier draft applies to the **exported** GTFS
+namespace only — inside our own schema these concepts are ordinary first-class tables,
+because they *are* the business.
+
+## Rule catalogue
+
+`R1`–`R18` live in `packages/domain/src/rules/catalog.ts` with the operators' severity split
+(13 hard / 5 soft). `L1`–`L5` are the new driver working-time rules (defaults from the
+reference bus-driver model, pending operator confirmation). `ENFORCEMENT` in
+`packages/domain/src/plan/engine.ts` records where each rule is enforced — engine or write
+guard — and a test fails if a code is added without an entry.

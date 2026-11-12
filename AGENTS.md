@@ -11,11 +11,12 @@ operator-facing UI is Turkish.**
 | `apps/web` | Next.js App Router: planner, dispatcher, admin, driver PWA at `/driver` | contain business rules — those belong in `packages/domain` |
 | `packages/domain` | pure TypeScript entities, value objects, rule engine, rotation law, heuristics | import React, Next, Drizzle or touch the network |
 | `packages/db` | Drizzle schema, migrations, seed, GTFS/TODS import-export | contain rule logic |
+| `packages/gtfs` | GTFS + TODS read/write, validation | talk to the database |
 | `packages/xlsx` | printed-sheet layout and export (template v2.0 cell map) | know about the database |
 | `docs/` | design; `legacy-*.md` are frozen records (see `docs/README.md`) | be edited to match new ideas — write a new doc instead |
 | `tests/` | cross-package golden files and e2e fixtures | hold application code |
 
-Dependency direction: `web → domain`, `web → db`, `web → xlsx`, `xlsx → domain`, `db → (nothing)`.
+Dependency direction: `web → domain/db/xlsx/gtfs`, `gtfs → domain`, `xlsx → domain`, `db → domain` (types only).
 `domain` never depends on another workspace package.
 
 ## Commands
