@@ -61,3 +61,10 @@ export type {
   Violation,
 } from './plan/types'
 export { ENFORCEMENT, blocksPublishing, validatePlan } from './plan/engine'
+export {
+  cellLabel,
+  generateWeeklyPlan,
+  type GenerationInput,
+  type GenerationResult,
+  type GroupPlanRef,
+} from './plan/generate'
