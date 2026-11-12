@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { RULE_CATALOG, type RuleCode } from '@citybus/domain'
-import { defectReports, drivers, planVersions, ruleViolations } from '@citybus/db'
+import { auditLog, defectReports, drivers, planVersions, ruleViolations } from '@citybus/db'
 import { requireSession } from '@/lib/auth'
 import { getDb, getOrganisation, getSql } from '@/lib/db'
 import { loadPlan, mondayOf } from '@/lib/plan'
@@ -22,7 +22,7 @@ export default async function ReportsPage({
 
   const plan = await loadPlan(db, organisation.id, organisation.rotationAnchorWeek, weekStart)
 
-  const [violationSummary, driverCount, openDefects, planRows] = await Promise.all([
+  const [violationSummary, driverCount, openDefects, planRows, auditRows] = await Promise.all([
     plan.version === null
       ? Promise.resolve([])
       : db
@@ -46,6 +46,12 @@ export default async function ReportsPage({
       .where(eq(planVersions.organisationId, organisation.id))
       .orderBy(desc(planVersions.weekStart))
       .limit(8),
+    db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.organisationId, organisation.id))
+      .orderBy(desc(auditLog.createdAt))
+      .limit(15),
   ])
 
   const dutyPerDay = new Map<number, number>()
@@ -167,6 +173,35 @@ export default async function ReportsPage({
                   <span className={`badge ${row.severity}`}>{row.severity === 'hard' ? 'sert' : 'yumuşak'}</span>
                 </td>
                 <td>{row.count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <h3>Son işlemler (denetim izi)</h3>
+      {auditRows.length === 0 ? (
+        <div className="notice">Henüz denetim kaydı yok.</div>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Zaman</th>
+              <th>İşlem</th>
+              <th>Varlık</th>
+            </tr>
+          </thead>
+          <tbody>
+            {auditRows.map((row) => (
+              <tr key={row.id}>
+                <td className="muted">{row.createdAt.toISOString().slice(0, 16).replace('T', ' ')}</td>
+                <td>
+                  <strong>{row.action}</strong>
+                </td>
+                <td className="muted">
+                  {row.entity}
+                  {row.entityId === null ? '' : ` · ${row.entityId.slice(0, 8)}`}
+                </td>
               </tr>
             ))}
           </tbody>

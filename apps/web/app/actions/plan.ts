@@ -12,6 +12,7 @@ import {
   type AssignmentRef,
 } from '@citybus/domain'
 import { assignments, planVersions, routes, standbys, trips, vehicles } from '@citybus/db'
+import { recordAudit } from '@/lib/audit'
 import { getDb, getOrganisation } from '@/lib/db'
 import { loadPlan, mondayOf, savePlan, saveViolations } from '@/lib/plan'
 
@@ -66,7 +67,21 @@ export async function generatePlanAction(form: FormData): Promise<void> {
     tripsByRouteDay,
   })
 
-  await savePlan(db, organisation.id, result.snapshot, result.violations, null)
+  const saved = await savePlan(db, organisation.id, result.snapshot, result.violations, null)
+  await recordAudit(db, {
+    organisationId: organisation.id,
+    actorUserId: null,
+    action: 'plan.generate',
+    entity: 'plan_version',
+    entityId: saved.id,
+    payload: {
+      weekStart,
+      assignments: result.snapshot.assignments.length,
+      standbys: result.snapshot.standbys.length,
+      violations: result.violations.length,
+      notices: result.notices,
+    },
+  })
 
   const query = new URLSearchParams({ week: weekStart })
   if (result.notices.length > 0) {
@@ -98,6 +113,15 @@ export async function publishPlanAction(form: FormData): Promise<void> {
     .update(planVersions)
     .set({ status: 'published', publishedAt: new Date() })
     .where(eq(planVersions.id, current.version.id))
+
+  await recordAudit(db, {
+    organisationId: organisation.id,
+    actorUserId: null,
+    action: 'plan.publish',
+    entity: 'plan_version',
+    entityId: current.version.id,
+    payload: { weekStart, hardViolations: 0, softViolations: violations.length },
+  })
 
   revalidatePath('/plan')
   redirect(`/plan?week=${weekStart}&published=1`)
@@ -225,6 +249,15 @@ export async function setCellAction(form: FormData): Promise<void> {
 
   const refreshed = await loadPlan(db, organisation.id, organisation.rotationAnchorWeek, weekStart)
   await saveViolations(db, current.version.id, validatePlan(refreshed.snapshot))
+
+  await recordAudit(db, {
+    organisationId: organisation.id,
+    actorUserId: null,
+    action: 'plan.cell.edit',
+    entity: 'assignment',
+    entityId: `${weekStart}:${plate}:${dayIndexValue}`,
+    payload: { rawCode, status, routeId, extraDutyRouteId, firstTripMinute },
+  })
 
   revalidatePath('/plan')
   redirect(`/plan?week=${weekStart}&edited=${encodeURIComponent(plate)}`)

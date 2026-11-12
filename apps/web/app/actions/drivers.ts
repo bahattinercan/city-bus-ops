@@ -14,6 +14,7 @@ import {
   vehicles,
 } from '@citybus/db'
 import { requireSession } from '@/lib/auth'
+import { recordAudit } from '@/lib/audit'
 import { getDb, getOrganisation } from '@/lib/db'
 import { loadPlan, mondayOf, saveViolations } from '@/lib/plan'
 import { buildRoster, type DriverAbsence, type TripWindow } from '@/lib/roster'
@@ -99,6 +100,15 @@ export async function generateRosterAction(form: FormData): Promise<void> {
 
   const refreshed = await loadPlan(db, organisation.id, organisation.rotationAnchorWeek, weekStart)
   await saveViolations(db, version.id, validatePlan(refreshed.snapshot))
+
+  await recordAudit(db, {
+    organisationId: organisation.id,
+    actorUserId: null,
+    action: 'roster.generate',
+    entity: 'roster_entry',
+    entityId: version.id,
+    payload: { weekStart, entries: roster.entries.length, notices: roster.notices },
+  })
 
   revalidatePath('/drivers')
   const query = new URLSearchParams({ week: weekStart, roster: String(roster.entries.length) })
@@ -216,6 +226,15 @@ export async function decideSwapAction(form: FormData): Promise<void> {
     .set({ status: 'approved', decidedBy: session.userId, decidedAt: new Date() })
     .where(eq(swapRequests.id, request.id))
 
+  await recordAudit(db, {
+    organisationId: (await getOrganisation()).id,
+    actorUserId: session.userId,
+    action: 'swap.decide',
+    entity: 'swap_request',
+    entityId: request.id,
+    payload: { decision, dayIndex: request.dayIndex },
+  })
+
   if (request.toDriverId !== null) {
     await db
       .update(rosterEntries)
@@ -249,6 +268,15 @@ export async function reportDefectAction(form: FormData): Promise<void> {
   if (vehicle === undefined) {
     fail('/driver', `Araç bulunamadı: ${plate}`)
   }
+
+  await recordAudit(db, {
+    organisationId: session.organisationId,
+    actorUserId: session.userId,
+    action: 'defect.report',
+    entity: 'defect_report',
+    entityId: vehicle.id,
+    payload: { plate, severity, description },
+  })
 
   await db.insert(defectReports).values({
     organisationId: session.organisationId,
