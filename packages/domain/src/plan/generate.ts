@@ -1,4 +1,5 @@
 import { rotationDayIndex } from '../rotation'
+import { blockTrips, type BlockableTrip } from './blocking'
 import type { PlanSnapshot, Violation } from './types'
 import type { AssignmentRef, DayRef, GroupRef, RouteRef, StandbyRef, VehicleRef } from './types'
 import { validatePlan } from './engine'
@@ -19,6 +20,8 @@ export type GenerationInput = {
   readonly lockedAssignments?: readonly AssignmentRef[]
   /** Standby generation is off unless the operator names the route code to print. */
   readonly standby?: { readonly perDay: number; readonly routeId: string } | undefined
+  /** Timetable per `routeId:dayType`, used for vehicle blocking. */
+  readonly tripsByRouteDay?: ReadonlyMap<string, readonly BlockableTrip[]> | undefined
 }
 
 export type GenerationResult = {
@@ -133,6 +136,34 @@ export function generateWeeklyPlan(input: GenerationInput): GenerationResult {
     }
   }
 
+  // 4) Vehicle blocking: split each route's trips across the vehicles on duty that day.
+  const tripBlocks: { dayIndex: 1 | 2 | 3 | 4 | 5 | 6 | 7; vehicleId: string; tripIds: string[] }[] = []
+  if (input.tripsByRouteDay !== undefined) {
+    for (const day of input.days) {
+      const dutyByRoute = new Map<string, string[]>()
+      for (const assignment of assignments) {
+        if (assignment.dayIndex !== day.dayIndex) continue
+        if (assignment.status !== 'duty' || assignment.routeId === null) continue
+        const list = dutyByRoute.get(assignment.routeId) ?? []
+        list.push(assignment.vehicleId)
+        dutyByRoute.set(assignment.routeId, list)
+      }
+
+      for (const [routeId, vehiclesOnRoute] of dutyByRoute) {
+        const trips = input.tripsByRouteDay.get(`${routeId}:${day.dayType}`)
+        if (trips === undefined || trips.length === 0) continue
+
+        const blocking = blockTrips(trips, vehiclesOnRoute)
+        for (const block of blocking.blocks) {
+          tripBlocks.push({ dayIndex: day.dayIndex, vehicleId: block.vehicleId, tripIds: [...block.tripIds] })
+        }
+        for (const notice of blocking.notices) {
+          notices.push(`${day.date} ${routeId}: ${notice}`)
+        }
+      }
+    }
+  }
+
   const snapshot: PlanSnapshot = {
     weekStart: input.weekStart,
     weekOffset: input.weekOffset,
@@ -145,6 +176,7 @@ export function generateWeeklyPlan(input: GenerationInput): GenerationResult {
     ),
     standbys,
     roster: [],
+    tripBlocks,
   }
 
   return { snapshot, notices, violations: validatePlan(snapshot) }

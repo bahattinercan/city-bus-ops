@@ -62,6 +62,14 @@ export type {
 } from './plan/types'
 export { ENFORCEMENT, blocksPublishing, validatePlan } from './plan/engine'
 export {
+  blockTrips,
+  blockWindow,
+  type BlockableTrip,
+  type BlockingOptions,
+  type BlockingResult,
+  type TripBlock,
+} from './plan/blocking'
+export {
   cellLabel,
   generateWeeklyPlan,
   type GenerationInput,

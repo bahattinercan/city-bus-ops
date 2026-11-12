@@ -15,6 +15,7 @@ import {
 } from '@citybus/domain'
 import {
   absences,
+  blockTrips,
   assignments,
   dutyGroups,
   planVersions,
@@ -99,6 +100,14 @@ export async function loadPlan(
     version === undefined
       ? []
       : await db.select().from(rosterEntries).where(eq(rosterEntries.planVersionId, version.id))
+  const blockRows =
+    version === undefined
+      ? []
+      : await db
+          .select()
+          .from(blockTrips)
+          .where(eq(blockTrips.planVersionId, version.id))
+          .orderBy(asc(blockTrips.dayIndex), asc(blockTrips.sequence))
   const absenceRows = await db.select().from(absences).where(eq(absences.organisationId, organisationId))
 
   const historyStart = new Date(Date.parse(`${weekStart}T00:00:00Z`) - 6 * 7 * 24 * 60 * 60 * 1000)
@@ -143,7 +152,7 @@ export async function loadPlan(
       name: row.name,
       vehicleCount: row.vehicleCount,
       referenceDayIndex: row.referenceDayIndex as 1 | 2 | 3 | 4 | 5 | 6 | 7,
-      routeId: null,
+      routeId: row.defaultRouteId,
     })),
     assignments: assignmentRows.map<AssignmentRef>((row) => ({
       dayIndex: row.dayIndex as 1 | 2 | 3 | 4 | 5 | 6 | 7,
@@ -182,6 +191,7 @@ export async function loadPlan(
       if (start === undefined) return []
       return [{ vehicleId: row.vehicleId, weekStart: start, dayIndex: row.dayIndex as 1 | 2 | 3 | 4 | 5 | 6 | 7 }]
     }),
+    tripBlocks: groupBlocks(blockRows),
     reportedWeeklyVehicleDays: version?.reportedWeeklyVehicleDays ?? undefined,
   }
 
@@ -247,6 +257,7 @@ export async function savePlan(
     throw new Error('Plan version could not be saved')
   }
 
+  await db.delete(blockTrips).where(eq(blockTrips.planVersionId, version.id))
   await db.delete(assignments).where(eq(assignments.planVersionId, version.id))
   await db.delete(standbys).where(eq(standbys.planVersionId, version.id))
   await db.delete(ruleViolations).where(eq(ruleViolations.planVersionId, version.id))
@@ -277,6 +288,21 @@ export async function savePlan(
         routeId: standby.routeId,
         rawCode: standby.rawCode,
       })),
+    )
+  }
+
+  const blocks = snapshot.tripBlocks ?? []
+  if (blocks.length > 0) {
+    await db.insert(blockTrips).values(
+      blocks.flatMap((block) =>
+        block.tripIds.map((tripId, index) => ({
+          planVersionId: version.id,
+          dayIndex: block.dayIndex,
+          vehicleId: block.vehicleId,
+          tripId,
+          sequence: index + 1,
+        })),
+      ),
     )
   }
 
@@ -320,4 +346,24 @@ export function canPublish(violations: readonly Violation[]): boolean {
 /** Rotation weekday a group must fall on, for the plan header. */
 export function groupDayForWeek(referenceDayIndex: number, weekOffset: number): number {
   return rotationDayIndex(referenceDayIndex as 1 | 2 | 3 | 4 | 5 | 6 | 7, weekOffset)
+}
+
+function groupBlocks(
+  rows: readonly { dayIndex: number; vehicleId: string; tripId: string }[],
+): { dayIndex: 1 | 2 | 3 | 4 | 5 | 6 | 7; vehicleId: string; tripIds: string[] }[] {
+  const grouped = new Map<string, { dayIndex: 1 | 2 | 3 | 4 | 5 | 6 | 7; vehicleId: string; tripIds: string[] }>()
+  for (const row of rows) {
+    const key = `${row.dayIndex}:${row.vehicleId}`
+    const existing = grouped.get(key)
+    if (existing === undefined) {
+      grouped.set(key, {
+        dayIndex: row.dayIndex as 1 | 2 | 3 | 4 | 5 | 6 | 7,
+        vehicleId: row.vehicleId,
+        tripIds: [row.tripId],
+      })
+      continue
+    }
+    existing.tripIds.push(row.tripId)
+  }
+  return [...grouped.values()]
 }

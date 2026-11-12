@@ -1,0 +1,3 @@
+ALTER TABLE "duty_group" ADD COLUMN "default_route_id" uuid;--> statement-breakpoint
+ALTER TABLE "duty_group" ADD CONSTRAINT "duty_group_default_route_id_route_id_fk" FOREIGN KEY ("default_route_id") REFERENCES "public"."route"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_route_daytype_start_key" ON "trip" USING btree ("route_id","day_type","start_minute");

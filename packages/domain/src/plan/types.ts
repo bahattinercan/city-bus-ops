@@ -110,6 +110,12 @@ export type PlanSnapshot = {
   readonly standbys: readonly StandbyRef[]
   readonly roster: readonly RosterRef[]
   readonly tripAssignments?: readonly TripAssignmentRef[]
+  /** Vehicle blocking output: which trips each vehicle runs that day. */
+  readonly tripBlocks?: readonly {
+    readonly dayIndex: DayIndex
+    readonly vehicleId: string
+    readonly tripIds: readonly string[]
+  }[]
   readonly absences?: readonly AbsenceRef[]
   readonly standbyHistory?: readonly StandbyHistoryRef[]
   /** Weekly total printed on the sheet (legacy `=76`), when known. */

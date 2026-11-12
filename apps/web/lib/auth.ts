@@ -2,7 +2,7 @@ import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypt
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
-import { users } from '@citybus/db'
+import { drivers, users } from '@citybus/db'
 import { getDb, getOrganisation } from './db'
 
 export type Role = 'admin' | 'planner' | 'dispatcher' | 'driver'
@@ -139,10 +139,9 @@ export async function login(email: string, password: string): Promise<LoginResul
 export async function ensureDemoUsers(): Promise<void> {
   const organisation = await getOrganisation()
   const db = getDb()
-  const existing = await db.select({ id: users.id }).from(users).limit(1)
-  if (existing.length > 0) return
-
   const password = process.env.CITYBUS_DEMO_PASSWORD ?? 'demo1234'
+  const [firstDriver] = await db.select().from(drivers).limit(1)
+
   await db
     .insert(users)
     .values([
@@ -166,4 +165,19 @@ export async function ensureDemoUsers(): Promise<void> {
       },
     ])
     .onConflictDoNothing()
+
+  // The driver account is kept in sync: it must point at a real driver record.
+  await db
+    .insert(users)
+    .values({
+      organisationId: organisation.id,
+      email: 'sofor@kutahya.local',
+      passwordHash: hashPassword(password),
+      role: 'driver',
+      driverId: firstDriver?.id ?? null,
+    })
+    .onConflictDoUpdate({
+      target: users.email,
+      set: { driverId: firstDriver?.id ?? null },
+    })
 }

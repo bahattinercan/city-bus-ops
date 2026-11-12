@@ -115,7 +115,10 @@ export const trips = pgTable('trip', {
   endMinute: integer('end_minute').notNull(),
   crossesMidnight: boolean('crosses_midnight').notNull().default(false),
   createdAt: createdAt(),
-}, (table) => [index('trip_route_daytype_start_idx').on(table.routeId, table.dayType, table.startMinute)])
+}, (table) => [
+  index('trip_route_daytype_start_idx').on(table.routeId, table.dayType, table.startMinute),
+  uniqueIndex('trip_route_daytype_start_key').on(table.routeId, table.dayType, table.startMinute),
+])
 
 export const tripStopTimes = pgTable('trip_stop_time', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -127,6 +130,19 @@ export const tripStopTimes = pgTable('trip_stop_time', {
   departureMinute: integer('departure_minute').notNull(),
 }, (table) => [uniqueIndex('trip_stop_time_key').on(table.tripId, table.sequence)])
 
+/** Which trips a vehicle actually runs that day — the output of vehicle blocking. */
+export const blockTrips = pgTable('block_trip', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  planVersionId: uuid('plan_version_id').notNull().references(() => planVersions.id, { onDelete: 'cascade' }),
+  dayIndex: integer('day_index').notNull(),
+  vehicleId: uuid('vehicle_id').notNull().references(() => vehicles.id, { onDelete: 'cascade' }),
+  tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
+  sequence: integer('sequence').notNull(),
+}, (table) => [
+  uniqueIndex('block_trip_plan_trip_key').on(table.planVersionId, table.tripId),
+  index('block_trip_plan_vehicle_idx').on(table.planVersionId, table.dayIndex, table.vehicleId),
+])
+
 /** A duty group's weekday moves through the week (rotation law F1-F5). */
 export const dutyGroups = pgTable('duty_group', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -136,6 +152,8 @@ export const dutyGroups = pgTable('duty_group', {
   vehicleCount: integer('vehicle_count').notNull(),
   /** Weekday of the group in the rotation anchor week (legacy `g0`), Monday = 1. */
   referenceDayIndex: integer('reference_day_index').notNull(),
+  /** Route the group's duties run on; null until the operator assigns one. */
+  defaultRouteId: uuid('default_route_id').references(() => routes.id, { onDelete: 'set null' }),
 }, (table) => [uniqueIndex('duty_group_org_code_key').on(table.organisationId, table.code)])
 
 export const planVersions = pgTable('plan_version', {

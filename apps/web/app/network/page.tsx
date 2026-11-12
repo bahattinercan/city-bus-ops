@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { asc, eq } from 'drizzle-orm'
 import { routes, stops } from '@citybus/db'
+import { requireSession } from '@/lib/auth'
 import { getDb, getOrganisation, getSql } from '@/lib/db'
 import { createRouteAction, createStopAction } from '../actions/network'
 
@@ -11,6 +12,7 @@ export default async function NetworkPage({
 }: {
   searchParams: Promise<{ error?: string }>
 }) {
+  await requireSession(['admin', 'planner'])
   const { error } = await searchParams
   const organisation = await getOrganisation()
   const db = getDb()

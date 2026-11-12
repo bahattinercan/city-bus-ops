@@ -22,6 +22,20 @@
       "when": 1794486483300,
       "tag": "0002_loving_captain_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794487140792,
+      "tag": "0003_broken_steel_serpent",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794487239537,
+      "tag": "0004_nasty_the_stranger",
+      "breakpoints": true
     }
   ]
 }

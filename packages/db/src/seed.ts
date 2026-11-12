@@ -1,5 +1,18 @@
 import type { createDb } from './client'
-import { depots, dutyGroups, organisations, routes, vehicles } from './schema'
+import { asc, eq } from 'drizzle-orm'
+import { DAY_TYPES } from '@citybus/domain'
+import {
+  depots,
+  drivers,
+  dutyGroups,
+  organisations,
+  routeStops,
+  routes,
+  stops,
+  tripStopTimes,
+  trips,
+  vehicles,
+} from './schema'
 
 /**
  * Reference data for the Kütahya fleet, taken verbatim from the legacy analysis
@@ -32,12 +45,44 @@ const DUTY_GROUPS = [
   { code: 'KAMPUS', name: '(1) Kampüs/Konya', vehicleCount: 1, referenceDayIndex: 5 },
 ] as const
 
+/**
+ * Demo drivers. The operator's real list (name, licence class, seniority) is still an open
+ * input (docs/05-roadmap.md M4 gate); these rows exist so rosters and the driver app can be
+ * exercised end to end, and are marked with a `DEMO-` employee number on purpose.
+ */
+const DEMO_DRIVERS = Array.from({ length: 20 }, (_, index) => {
+  const no = String(index + 1).padStart(2, '0')
+  return { employeeNo: `DEMO-${no}`, fullName: `Demo Şoför ${no}`, seniority: 100 - index }
+})
+
+/**
+ * Demo timetable for one route so the planning screens, run cutting and the driver app can
+ * be exercised without the operator's real data. Every trip is 40 minutes, every 10 minutes
+ * between 06:00 and 22:00, on all seven day types. Clearly marked as demo in the docs — real
+ * timetables arrive through the GTFS import or the network editor.
+ */
+const DEMO_ROUTE_CODE = '9A'
+const DEMO_STOPS = [
+  { code: 'S1', name: 'Otogar', latitude: '39.4200', longitude: '29.9800' },
+  { code: 'S2', name: 'Cumhuriyet', latitude: '39.4242', longitude: '29.9855' },
+  { code: 'S3', name: 'Yeni Mahalle', latitude: null, longitude: null },
+]
+const DEMO_FIRST_DEPARTURE = 6 * 60
+const DEMO_LAST_DEPARTURE = 22 * 60
+const DEMO_TRIP_MINUTES = 40
+const DEMO_HEADWAY_MINUTES = 10
+
 export const SEED_SUMMARY = {
   organisationSlug: 'kutahya',
   /** 41 printed + 4 handwritten fleet numbers. */
   vehicleCount: PRINTED_PLATES.length + HANDWRITTEN_PLATES.length,
   routeCount: ROUTE_CODES.length,
   dutyGroupCount: DUTY_GROUPS.length,
+  driverCount: DEMO_DRIVERS.length,
+  demoTripsPerDay:
+    Math.floor((DEMO_LAST_DEPARTURE - DEMO_FIRST_DEPARTURE) / DEMO_HEADWAY_MINUTES) + 1,
+  demoTripsTotal:
+    (Math.floor((DEMO_LAST_DEPARTURE - DEMO_FIRST_DEPARTURE) / DEMO_HEADWAY_MINUTES) + 1) * DAY_TYPES.length,
 } as const
 
 export async function seedReferenceData(handle: ReturnType<typeof createDb>) {
@@ -95,9 +140,100 @@ export async function seedReferenceData(handle: ReturnType<typeof createDb>) {
     .onConflictDoNothing()
 
   await db
+    .insert(drivers)
+    .values(DEMO_DRIVERS.map((driver) => ({ organisationId, ...driver })))
+    .onConflictDoNothing()
+
+  await db
     .insert(dutyGroups)
     .values(DUTY_GROUPS.map((group) => ({ organisationId, ...group })))
     .onConflictDoNothing()
 
+  await seedDemoTimetable(handle, organisationId)
+
   return { organisationId }
+}
+
+async function seedDemoTimetable(handle: ReturnType<typeof createDb>, organisationId: string) {
+  const { db } = handle
+
+  await db
+    .insert(stops)
+    .values(DEMO_STOPS.map((stop) => ({ organisationId, ...stop })))
+    .onConflictDoNothing()
+
+  const stopRows = await db.select().from(stops).where(eq(stops.organisationId, organisationId))
+  const stopIdByCode = new Map(stopRows.map((row) => [row.code, row.id]))
+
+  const routeRows = await db
+    .select()
+    .from(routes)
+    .where(eq(routes.organisationId, organisationId))
+    .orderBy(asc(routes.code))
+  const demoRoute = routeRows.find((row) => row.code === DEMO_ROUTE_CODE)
+  if (demoRoute === undefined) return
+
+  await db
+    .update(dutyGroups)
+    .set({ defaultRouteId: demoRoute.id })
+    .where(eq(dutyGroups.organisationId, organisationId))
+
+  for (const [index, stop] of DEMO_STOPS.entries()) {
+    const stopId = stopIdByCode.get(stop.code)
+    if (stopId === undefined) continue
+    await db
+      .insert(routeStops)
+      .values({ routeId: demoRoute.id, stopId, direction: 0, sequence: index + 1 })
+      .onConflictDoNothing()
+  }
+
+  const tripValues: {
+    routeId: string
+    dayType: (typeof DAY_TYPES)[number]
+    startMinute: number
+    endMinute: number
+    crossesMidnight: boolean
+  }[] = []
+
+  for (const dayType of DAY_TYPES) {
+    for (let start = DEMO_FIRST_DEPARTURE; start <= DEMO_LAST_DEPARTURE; start += DEMO_HEADWAY_MINUTES) {
+      const end = start + DEMO_TRIP_MINUTES
+      tripValues.push({
+        routeId: demoRoute.id,
+        dayType,
+        startMinute: start,
+        endMinute: end,
+        crossesMidnight: end > 1440,
+      })
+    }
+  }
+
+  const insertedTrips = await db
+    .insert(trips)
+    .values(tripValues)
+    .onConflictDoNothing()
+    .returning({ id: trips.id, startMinute: trips.startMinute })
+
+  if (insertedTrips.length === 0) return
+
+  const step = Math.round(DEMO_TRIP_MINUTES / (DEMO_STOPS.length - 1))
+  const stopTimeValues = insertedTrips.flatMap((trip) =>
+    DEMO_STOPS.flatMap((stop, index) => {
+      const stopId = stopIdByCode.get(stop.code)
+      if (stopId === undefined) return []
+      const minute = trip.startMinute + step * index
+      return [
+        {
+          tripId: trip.id,
+          stopId,
+          sequence: index + 1,
+          arrivalMinute: minute,
+          departureMinute: minute,
+        },
+      ]
+    }),
+  )
+
+  await db.insert(tripStopTimes).values(stopTimeValues)
+
 }

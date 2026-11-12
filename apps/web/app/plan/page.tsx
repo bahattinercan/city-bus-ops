@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { RULE_CATALOG, cellLabel, type RuleCode } from '@citybus/domain'
+import { requireSession } from '@/lib/auth'
 import { getDb, getOrganisation } from '@/lib/db'
 import { groupDayForWeek, loadPlan, mondayOf } from '@/lib/plan'
 import { dayLabel, formatMinutes } from '@/lib/time'
@@ -18,6 +19,7 @@ export default async function PlanPage({
     edited?: string
   }>
 }) {
+  await requireSession(['admin', 'planner', 'dispatcher'])
   const params = await searchParams
   const organisation = await getOrganisation()
   const weekStart = mondayOf(params.week ?? new Date().toISOString().slice(0, 10))

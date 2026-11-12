@@ -25,6 +25,10 @@ const groups: GroupPlanRef[] = [
   { id: 'g2', code: 'CUKUR', name: '(5) B.Çukur', vehicleCount: 5, referenceDayIndex: 1, routeId: 'r1' },
 ]
 
+function sortedIds(ids: readonly string[]): string[] {
+  return [...ids].sort()
+}
+
 function generate(overrides: Partial<Parameters<typeof generateWeeklyPlan>[0]> = {}) {
   return generateWeeklyPlan({
     weekStart: '2026-09-21',
@@ -114,6 +118,28 @@ describe('generateWeeklyPlan', () => {
     )
     expect(cell?.locked).toBe(true)
     expect(cell?.firstTripMinute).toBe(720)
+  })
+
+  it('blocks trips so no duty spans the whole service day', () => {
+    const day = Array.from({ length: 20 }, (_, index) => ({
+      id: `t${index}`,
+      startMinute: 360 + index * 60,
+      endMinute: 400 + index * 60,
+    }))
+    const result = generate({ tripsByRouteDay: new Map([['r1:monday', day]]) })
+    const monday = result.snapshot.tripBlocks?.filter((block) => block.dayIndex === 1) ?? []
+
+    expect(monday.length).toBeGreaterThan(1)
+    const assigned = monday.flatMap((block) => block.tripIds)
+    expect(sortedIds(assigned)).toEqual(sortedIds(day.map((trip) => trip.id)))
+
+    for (const block of monday) {
+      const trips = block.tripIds.map((id) => day.find((trip) => trip.id === id))
+      const starts = trips.flatMap((trip) => (trip === undefined ? [] : [trip.startMinute]))
+      const ends = trips.flatMap((trip) => (trip === undefined ? [] : [trip.endMinute]))
+      expect(Math.max(...ends) - Math.min(...starts)).toBeLessThanOrEqual(8 * 60)
+    }
+    expect(result.notices).toEqual([])
   })
 
   it('is deterministic', () => {

@@ -11,7 +11,7 @@ import {
   validatePlan,
   type AssignmentRef,
 } from '@citybus/domain'
-import { assignments, planVersions, routes, standbys, vehicles } from '@citybus/db'
+import { assignments, planVersions, routes, standbys, trips, vehicles } from '@citybus/db'
 import { getDb, getOrganisation } from '@/lib/db'
 import { loadPlan, mondayOf, savePlan, saveViolations } from '@/lib/plan'
 
@@ -35,6 +35,24 @@ export async function generatePlanAction(form: FormData): Promise<void> {
     .filter((assignment) => assignment.locked)
     .map<AssignmentRef>((assignment) => ({ ...assignment }))
 
+  const tripRows = await db
+    .select({
+      id: trips.id,
+      routeId: trips.routeId,
+      dayType: trips.dayType,
+      startMinute: trips.startMinute,
+      endMinute: trips.endMinute,
+    })
+    .from(trips)
+
+  const tripsByRouteDay = new Map<string, { id: string; startMinute: number; endMinute: number }[]>()
+  for (const trip of tripRows) {
+    const key = `${trip.routeId}:${trip.dayType}`
+    const list = tripsByRouteDay.get(key) ?? []
+    list.push({ id: trip.id, startMinute: trip.startMinute, endMinute: trip.endMinute })
+    tripsByRouteDay.set(key, list)
+  }
+
   const standbyRouteId = current.snapshot.routes[0]?.id ?? null
   const result = generateWeeklyPlan({
     weekStart: current.snapshot.weekStart,
@@ -45,6 +63,7 @@ export async function generatePlanAction(form: FormData): Promise<void> {
     groups: current.snapshot.groups,
     lockedAssignments: locked,
     standby: standbyRouteId === null ? undefined : { perDay: 1, routeId: standbyRouteId },
+    tripsByRouteDay,
   })
 
   await savePlan(db, organisation.id, result.snapshot, result.violations, null)

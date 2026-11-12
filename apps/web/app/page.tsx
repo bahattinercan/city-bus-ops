@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { requireSession } from '@/lib/auth'
 import { getOrganisation, getSql } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
@@ -33,6 +34,7 @@ async function counts(organisationId: string) {
 }
 
 export default async function Home() {
+  await requireSession(['admin', 'planner', 'dispatcher'])
   const organisation = await getOrganisation()
   const summary = await counts(organisation.id)
 

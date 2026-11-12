@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { and, asc, eq } from 'drizzle-orm'
 import { DAY_TYPES } from '@citybus/domain'
 import { routeStops, routes, stops, trips } from '@citybus/db'
+import { requireSession } from '@/lib/auth'
 import { getDb, getOrganisation } from '@/lib/db'
 import { dayLabel, formatMinutes, formatMinutesLong } from '@/lib/time'
 import {
@@ -21,6 +22,7 @@ export default async function RoutePage({
   params: Promise<{ code: string }>
   searchParams: Promise<{ error?: string }>
 }) {
+  await requireSession(['admin', 'planner'])
   const { code } = await params
   const { error } = await searchParams
   const routeCode = decodeURIComponent(code)
