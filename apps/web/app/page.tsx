@@ -1,88 +1,107 @@
-import { DAY_TYPES, PlateNumber, dayIndex, printLabel } from '@citybus/domain'
-import { MATRIX_SHEET, TEMPLATE_VERSION, dayColumn } from '@citybus/xlsx'
+import Link from 'next/link'
+import { getOrganisation, getSql } from '@/lib/db'
 
-type Milestone = {
-  readonly id: string
-  readonly scope: string
-  readonly state: 'done' | 'next' | 'pending'
+export const dynamic = 'force-dynamic'
+
+async function counts(organisationId: string) {
+  const [row] = await getSql()<{
+    vehicles: string
+    routes: string
+    stops: string
+    trips: string
+    drivers: string
+    plans: string
+  }[]>`
+    select
+      (select count(*) from vehicle where organisation_id = ${organisationId})::text as vehicles,
+      (select count(*) from route where organisation_id = ${organisationId})::text as routes,
+      (select count(*) from stop where organisation_id = ${organisationId})::text as stops,
+      (select count(*) from trip t
+        join route r on r.id = t.route_id
+        where r.organisation_id = ${organisationId})::text as trips,
+      (select count(*) from driver where organisation_id = ${organisationId})::text as drivers,
+      (select count(*) from plan_version where organisation_id = ${organisationId})::text as plans
+  `
+  return {
+    vehicles: Number(row?.vehicles ?? 0),
+    routes: Number(row?.routes ?? 0),
+    stops: Number(row?.stops ?? 0),
+    trips: Number(row?.trips ?? 0),
+    drivers: Number(row?.drivers ?? 0),
+    plans: Number(row?.plans ?? 0),
+  }
 }
 
-const MILESTONES: readonly Milestone[] = [
-  { id: 'M0', scope: 'İskele: workspace, Next.js, Postgres bağlantısı, CI', state: 'done' },
-  { id: 'M1', scope: 'Domain + şema + filo seed + kural kataloğu', state: 'next' },
-  { id: 'M2', scope: 'Hat / durak / sefer editörü + GTFS çıkışı', state: 'pending' },
-  { id: 'M3', scope: 'Araç bloklama, görev + 7 haftalık rotasyon, kural motoru', state: 'pending' },
-  { id: 'M4', scope: 'Şoför: kayıt, run cutting, roster, izin, takas, PWA', state: 'pending' },
-  { id: 'M5', scope: '.xlsx (şablon v2.0) + PDF + görev kartı + KPI', state: 'pending' },
-  { id: 'M6', scope: 'Roller, audit, yedek, deploy, demo tenant', state: 'pending' },
-]
+export default async function Home() {
+  const organisation = await getOrganisation()
+  const summary = await counts(organisation.id)
 
-const STATE_LABEL: Record<Milestone['state'], string> = {
-  done: 'TAMAM',
-  next: 'SIRADA',
-  pending: 'BEKLİYOR',
-}
-
-const SAMPLE_PLATE = PlateNumber.parse('3')
-
-export default function Home() {
   return (
-    <main>
-      <h1>City Bus Ops</h1>
-      <p className="lead">Şehir içi otobüs operasyon sistemi — planlama, görev ve şoför yönetimi.</p>
+    <>
+      <h1>Özet</h1>
+      <p className="lead">
+        {organisation.name} · rotasyon çapa haftası {organisation.rotationAnchorWeek} (7 haftalık döngü)
+      </p>
 
-      <section>
-        <h2>Yol haritası</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Faz</th>
-              <th>Kapsam</th>
-              <th>Durum</th>
-            </tr>
-          </thead>
-          <tbody>
-            {MILESTONES.map((milestone) => (
-              <tr key={milestone.id}>
-                <td>{milestone.id}</td>
-                <td>{milestone.scope}</td>
-                <td className={`state ${milestone.state === 'done' ? 'done' : 'pending'}`}>
-                  {STATE_LABEL[milestone.state]}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      <div className="grid">
+        <div className="card">
+          <div className="value">{summary.vehicles}</div>
+          <div className="label">Araç</div>
+        </div>
+        <div className="card">
+          <div className="value">{summary.routes}</div>
+          <div className="label">Hat</div>
+        </div>
+        <div className="card">
+          <div className="value">{summary.stops}</div>
+          <div className="label">Durak</div>
+        </div>
+        <div className="card">
+          <div className="value">{summary.trips}</div>
+          <div className="label">Sefer</div>
+        </div>
+        <div className="card">
+          <div className="value">{summary.drivers}</div>
+          <div className="label">Şoför</div>
+        </div>
+        <div className="card">
+          <div className="value">{summary.plans}</div>
+          <div className="label">Plan haftası</div>
+        </div>
+      </div>
 
-      <section>
-        <h2>Bağlı paketler (canlı kontrol)</h2>
-        <ul className="checks">
-          <li>
-            <code>@citybus/domain</code> plaka normalizasyonu: <code>&quot;3&quot;</code> →{' '}
-            <code>{SAMPLE_PLATE.value}</code> (sayısal {SAMPLE_PLATE.number})
-          </li>
-          <li>
-            <code>@citybus/xlsx</code> şablon sürümü: <code>{TEMPLATE_VERSION}</code> · sayfa{' '}
-            <code>{MATRIX_SHEET.name}</code> · veri satırı{' '}
-            <code>
-              {MATRIX_SHEET.firstDataRow}–{MATRIX_SHEET.lastDataRow}
-            </code>{' '}
-            · nöbet kolonu <code>{MATRIX_SHEET.standbyColumn}</code>
-          </li>
-          <li>
-            Gün → kolon eşlemesi:{' '}
-            {DAY_TYPES.map((day) => `${printLabel(day)} (${dayIndex(day)})=${dayColumn(day)}`).join(
-              ' · ',
-            )}
-          </li>
-        </ul>
-      </section>
+      <h3>Sonraki adım</h3>
+      {summary.trips === 0 ? (
+        <div className="notice">
+          Tarife boş. <Link href="/network">Ağ &amp; Tarife</Link> ekranından hat, durak ve sefer ekleyin;
+          seferler olmadan haftalık plan üretilemez.
+        </div>
+      ) : (
+        <div className="notice">
+          Tarife hazır. <Link href="/plan">Haftalık Plan</Link> ekranından haftayı üretip kurallara göre
+          doğrulayabilirsiniz.
+        </div>
+      )}
 
-      <footer>
-        M0 iskeleti. Veritabanı (Postgres + PostGIS) M1&apos;de bağlanır. Doğrulama:{' '}
-        <code>pnpm verify</code>
-      </footer>
-    </main>
+      <h3>Sistem</h3>
+      <table>
+        <tbody>
+          <tr>
+            <td>Kural kataloğu</td>
+            <td>R1–R18 (13 sert / 5 yumuşak) + şoför çalışma kuralları L1–L5</td>
+          </tr>
+          <tr>
+            <td>Rotasyon</td>
+            <td>7 haftalık görev grubu gün kayması — resmî kural, ihlal onayı bloke eder</td>
+          </tr>
+          <tr>
+            <td>Çıktılar</td>
+            <td>
+              <Link href="/api/gtfs">GTFS arşivi (zip)</Link> · haftalık plan ve Excel raporları
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </>
   )
 }

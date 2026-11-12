@@ -117,6 +117,16 @@ export const trips = pgTable('trip', {
   createdAt: createdAt(),
 }, (table) => [index('trip_route_daytype_start_idx').on(table.routeId, table.dayType, table.startMinute)])
 
+export const tripStopTimes = pgTable('trip_stop_time', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
+  stopId: uuid('stop_id').notNull().references(() => stops.id, { onDelete: 'cascade' }),
+  sequence: integer('sequence').notNull(),
+  /** Minutes after midnight; may exceed 1440 after midnight. */
+  arrivalMinute: integer('arrival_minute').notNull(),
+  departureMinute: integer('departure_minute').notNull(),
+}, (table) => [uniqueIndex('trip_stop_time_key').on(table.tripId, table.sequence)])
+
 /** A duty group's weekday moves through the week (rotation law F1-F5). */
 export const dutyGroups = pgTable('duty_group', {
   id: uuid('id').primaryKey().defaultRandom(),
