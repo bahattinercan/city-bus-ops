@@ -27,7 +27,6 @@ export default async function PlanPage({
 
   const groupsById = new Map(snapshot.groups.map((group) => [group.id, group]))
   const routesById = new Map(snapshot.routes.map((route) => [route.id, route]))
-  const plateById = new Map(snapshot.vehicles.map((vehicle) => [vehicle.id, vehicle.plate]))
 
   const cellByVehicleDay = new Map(
     snapshot.assignments.map((assignment) => [
