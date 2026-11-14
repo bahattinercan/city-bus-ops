@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const PORT = 9411;
-const URL_BASE = 'http://127.0.0.1:4173/';
+const URL_BASE = process.env.SITE_URL || 'http://127.0.0.1:4173/';
 const BROWSER = process.env.BROWSER_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const OUT = path.resolve('.design-audit/probe');
 
