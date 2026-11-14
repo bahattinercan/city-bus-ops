@@ -126,7 +126,14 @@ export type PlanSnapshot = {
 export type Violation = {
   readonly code: string
   readonly severity: RuleSeverity
+  /** Turkish sentence, the source of truth for logs, tests and the CLI. */
   readonly message: string
+  /**
+   * Stable message id (`R1.duplicateDuty`) plus its data, so the UI can render the same
+   * violation in another language without parsing `message`. Absent on older call sites.
+   */
+  readonly key?: string
+  readonly params?: Readonly<Record<string, string | number>>
   readonly dayIndex?: DayIndex
   readonly vehicleId?: string
   readonly driverId?: string

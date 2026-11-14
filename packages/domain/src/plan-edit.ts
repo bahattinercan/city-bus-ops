@@ -20,9 +20,29 @@ export type PlanEdit = {
 /** Guard rail: a single request may never rewrite the week (blast radius). */
 export const MAX_EDITS_PER_REQUEST = 20
 
-export type EditLineError = { readonly line: string; readonly reason: string }
+/** Stable ids for the UI translation layer; `reason` stays the Turkish source text. */
+export type EditProblemCode =
+  | 'missingDay'
+  | 'unknownDay'
+  | 'tooManyCells'
+  | 'duplicateCell'
+  | 'unknownPlate'
+  | 'invalidCode'
+  | 'unknownRoute'
 
-export type EditRejection = { readonly edit: PlanEdit; readonly reason: string }
+export type EditLineError = {
+  readonly line: string
+  readonly reason: string
+  readonly code: EditProblemCode
+  readonly params?: Readonly<Record<string, string | number>>
+}
+
+export type EditRejection = {
+  readonly edit: PlanEdit
+  readonly reason: string
+  readonly code: EditProblemCode
+  readonly params?: Readonly<Record<string, string | number>>
+}
 
 export type ResolvedEdit = {
   readonly edit: PlanEdit
@@ -125,14 +145,23 @@ export function parseEditText(text: string): {
     if (plate === undefined) continue
 
     if (tokens.length < 2) {
-      errors.push({ line, reason: 'gün eksik: "plaka gün kod" biçiminde yazın' })
+      errors.push({
+        line,
+        code: 'missingDay',
+        reason: 'gün eksik: "plaka gün kod" biçiminde yazın',
+      })
       continue
     }
 
     const dayToken = tokens[1] as string
     const day = parseEditDay(dayToken)
     if (day === undefined) {
-      errors.push({ line, reason: `gün anlaşılmadı: "${dayToken}"` })
+      errors.push({
+        line,
+        code: 'unknownDay',
+        params: { day: dayToken },
+        reason: `gün anlaşılmadı: "${dayToken}"`,
+      })
       continue
     }
 
@@ -157,7 +186,12 @@ export function resolveEdits(edits: readonly PlanEdit[], targets: EditTargets): 
 
   if (edits.length > MAX_EDITS_PER_REQUEST) {
     for (const edit of edits) {
-      rejected.push({ edit, reason: `tek istekte en fazla ${MAX_EDITS_PER_REQUEST} hücre değiştirilebilir` })
+      rejected.push({
+        edit,
+        code: 'tooManyCells',
+        params: { limit: MAX_EDITS_PER_REQUEST },
+        reason: `tek istekte en fazla ${MAX_EDITS_PER_REQUEST} hücre değiştirilebilir`,
+      })
     }
     return { resolved, rejected }
   }
@@ -169,24 +203,44 @@ export function resolveEdits(edits: readonly PlanEdit[], targets: EditTargets): 
     const key = `${edit.plate.trim().toUpperCase()}:${edit.dayIndex}`
     const duplicate = seen.get(key)
     if (duplicate !== undefined) {
-      rejected.push({ edit, reason: 'aynı hücre bu istekte iki kez geçiyor' })
+      rejected.push({
+        edit,
+        code: 'duplicateCell',
+        params: { cell: `${edit.plate} ${edit.dayIndex}` },
+        reason: 'aynı hücre bu istekte iki kez geçiyor',
+      })
       continue
     }
     seen.set(key, edit)
 
     const vehicle = vehicleByPlate.get(edit.plate.trim().toUpperCase())
     if (vehicle === undefined) {
-      rejected.push({ edit, reason: `araç bulunamadı: ${edit.plate}` })
+      rejected.push({
+        edit,
+        code: 'unknownPlate',
+        params: { plate: edit.plate },
+        reason: `araç bulunamadı: ${edit.plate}`,
+      })
       continue
     }
 
     const cell = parseSheetCell(edit.code)
     if (cell.kind === 'text') {
-      rejected.push({ edit, reason: `hücre kodu anlaşılmadı: "${cell.raw}"` })
+      rejected.push({
+        edit,
+        code: 'invalidCode',
+        params: { code: cell.raw },
+        reason: `hücre kodu anlaşılmadı: "${cell.raw}"`,
+      })
       continue
     }
     if ((cell.kind === 'duty' || cell.kind === 'extraDuty') && !routeCodeSet.has(cell.route.value)) {
-      rejected.push({ edit, reason: `hat kodu tanımlı değil: ${cell.route.value}` })
+      rejected.push({
+        edit,
+        code: 'unknownRoute',
+        params: { route: cell.route.value },
+        reason: `hat kodu tanımlı değil: ${cell.route.value}`,
+      })
       continue
     }
 

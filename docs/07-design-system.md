@@ -47,3 +47,25 @@ node C:/Orca/style-lab/kit/style-lint.mjs apps/web --style planetary-service
 
 `style-lint` reports the token block itself as `color-literal` errors — that is expected, the block is the
 one legal place for literals. Every other finding is a real violation.
+
+## Interface language
+
+The product speaks Turkish and English. The rule that follows from it:
+
+| Layer | Where the text lives | Why |
+| --- | --- | --- |
+| Screens, panels, form labels | `apps/web/lib/i18n/dictionaries/{tr,en}.ts` | one dictionary per language, `Messages` is `typeof tr` so `en` cannot miss a key |
+| Rule titles | `m.rules` / `m.driverRules` in the same dictionaries | the domain catalogue is English and internal; the UI never renders it directly |
+| Violation sentences | `m.violations`, keyed by `Violation.key` (`R1.duplicateDuty`) with `params` | the domain keeps the Turkish sentence as the log/test source of truth, the UI renders either language |
+| Server action errors | `m.errors`, keyed by the value in `?error=` | an unknown value is shown verbatim, never swallowed |
+| The printed Excel sheet | stays Turkish (`MESSAGES.tr` in the xlsx route) | it is the operator's form, not a screen |
+
+Rules for contributors:
+
+- Never hard-code a sentence in a page or component; add a key to both dictionaries.
+- `apps/web/lib/i18n/text.ts` is pure (safe in client components); `locale.ts` owns
+  `next/headers`, so client code imports `@/lib/i18n/text` and receives the dictionary as a prop.
+- A new rule code needs: the key in `violations`, made-up keys get invented (`R99.thing`), never a
+  translated sentence derived from the Turkish one by string surgery.
+- Default is Turkish (`DEFAULT_LOCALE`); the choice lives in the `cb_lang` cookie so a shared depot
+  PC remembers it per browser.

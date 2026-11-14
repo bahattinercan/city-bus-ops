@@ -37,7 +37,7 @@ export async function generateRosterAction(form: FormData): Promise<void> {
   const plan = await loadPlan(db, organisation.id, organisation.rotationAnchorWeek, weekStart)
   const version = plan.version
   if (version === null) {
-    fail(`/drivers?week=${weekStart}`, 'Önce haftalık planı üretin.')
+    fail(`/drivers?week=${weekStart}`, 'generateFirst')
   }
 
   const driverRows = await db
@@ -138,7 +138,7 @@ export async function createDriverAction(form: FormData): Promise<void> {
 export async function requestSwapAction(form: FormData): Promise<void> {
   const session = await requireSession(['driver'])
   if (session.driverId === null) {
-    fail('/driver', 'Bu hesap bir şoföre bağlı değil.')
+    fail('/driver', 'driverNotLinked')
   }
 
   const weekStart = week(form)
@@ -146,13 +146,13 @@ export async function requestSwapAction(form: FormData): Promise<void> {
   const note = String(form.get('note') ?? '').trim()
 
   if (dayIndex < 1 || dayIndex > 7) {
-    fail('/driver', 'Gün seçilmeli.')
+    fail('/driver', 'dayRequired')
   }
 
   const db = getDb()
   const plan = await loadPlan(db, session.organisationId, await anchorWeek(), weekStart)
   if (plan.version === null) {
-    fail('/driver', 'Bu hafta için yayınlanmış plan yok.')
+    fail('/driver', 'noPublishedPlan')
   }
 
   const [entry] = await db
@@ -168,7 +168,7 @@ export async function requestSwapAction(form: FormData): Promise<void> {
     .limit(1)
 
   if (entry === undefined) {
-    fail('/driver', 'O gün size atanmış görev yok.')
+    fail('/driver', 'noDutyThatDay')
   }
 
   await db.insert(swapRequests).values({
@@ -192,7 +192,7 @@ export async function decideSwapAction(form: FormData): Promise<void> {
 
   const [request] = await db.select().from(swapRequests).where(eq(swapRequests.id, requestId)).limit(1)
   if (request === undefined) {
-    fail('/drivers', 'Takas isteği bulunamadı.')
+    fail('/drivers', 'swapNotFound')
   }
 
   if (decision !== 'approved') {
@@ -217,7 +217,7 @@ export async function decideSwapAction(form: FormData): Promise<void> {
     .limit(1)
 
   if (entry === undefined) {
-    fail('/drivers', 'Takas edilecek görev artık mevcut değil.')
+    fail('/drivers', 'dutyGone')
   }
 
   // A swap without a named counterpart is "excused": the duty is released for reassignment.
@@ -255,7 +255,7 @@ export async function reportDefectAction(form: FormData): Promise<void> {
   const severity = String(form.get('severity') ?? 'medium')
 
   if (plate === '' || description === '') {
-    fail('/driver', 'Plaka ve açıklama zorunlu.')
+    fail('/driver', 'plateAndDescription')
   }
 
   const db = getDb()
@@ -313,7 +313,7 @@ export async function markAbsenceAction(form: FormData): Promise<void> {
   const type = String(form.get('type') ?? 'leave')
 
   if (driverId === '' || dateFrom === '') {
-    fail('/drivers', 'Şoför ve tarih zorunlu.')
+    fail('/drivers', 'driverAndDate')
   }
 
   await getDb()

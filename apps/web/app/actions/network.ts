@@ -59,7 +59,7 @@ export async function createStopAction(form: FormData): Promise<void> {
   const code = text(form, 'code')
   const name = text(form, 'name')
   if (code === '' || name === '') {
-    fail(back, 'Durak kodu ve adı zorunlu.')
+    fail(back, 'stopRequired')
   }
 
   const latitude = text(form, 'latitude')
@@ -118,7 +118,7 @@ export async function addRouteStopAction(form: FormData): Promise<void> {
     .orderBy(asc(routeStops.sequence))
 
   if (existing.some((row) => row.sequence === Number(form.get('sequence') ?? ''))) {
-    fail(back, 'Bu sıra numarası kullanılıyor.')
+    fail(back, 'sequenceUsed')
   }
 
   const nextSequence = (existing.at(-1)?.sequence ?? 0) + 1
@@ -174,7 +174,7 @@ export async function createTripAction(form: FormData): Promise<void> {
   }
 
   if (endMinute <= startMinute) {
-    fail(back, 'Bitiş saati başlangıçtan sonra olmalı.')
+    fail(back, 'tripStartEnd')
   }
 
   const db = getDb()
@@ -193,7 +193,7 @@ export async function createTripAction(form: FormData): Promise<void> {
     .orderBy(asc(routeStops.sequence))
 
   if (routeStopRows.length < 2) {
-    fail(back, 'Sefer eklemek için hattın en az iki durağı olmalı.')
+    fail(back, 'twoStopsNeeded')
   }
 
   const stopCodes = routeStopRows.map((row) => row.code)

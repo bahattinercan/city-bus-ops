@@ -68,6 +68,11 @@ pnpm --filter @citybus/desktop self-test  # headless boot check: server + SQLite
 The packaged app keeps its data in `%APPDATA%\CityBusOps` (`citybus.db`, `config.json`,
 `backups/`, `logs/`). Delete that folder to test a first run.
 
+**Interface language.** Turkish by default, English in the sidebar footer (Language → English →
+TR button), remembered in the `cb_lang` cookie. For a scripted check:
+`curl -H 'Cookie: cb_lang=en' http://127.0.0.1:3000/ | grep Overview`. The printed Excel sheet
+stays Turkish on purpose.
+
 **No password.** The desktop build sets `CITYBUS_LOCAL_MODE=1`: the app opens on the dashboard and
 the sidebar switches the working role (yönetici / planlama / santral / şoför, default admin) via a
 `cb_role` cookie. The password login only exists when `CITYBUS_LOCAL_MODE` is unset (web/server

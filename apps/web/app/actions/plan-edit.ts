@@ -18,7 +18,14 @@ import { recordAudit } from '@/lib/audit'
 import { writePlanCell } from '@/lib/cell-write'
 import { getDb, getOrganisation } from '@/lib/db'
 import { loadPlan, mondayOf, saveViolations, standbyRouteIdOf } from '@/lib/plan'
-import { dayLabel } from '@/lib/time'
+import { dayLabel, getMessages, type Messages } from '@/lib/i18n'
+
+/** A refused line or cell: the message id is translated by the panel, `text` is the fallback. */
+export type EditProblem = {
+  readonly code?: string
+  readonly params?: Readonly<Record<string, string | number>>
+  readonly text: string
+}
 
 export type ProposalRow = {
   readonly plate: string
@@ -31,14 +38,14 @@ export type ProposalRow = {
 
 export type EditState =
   | { readonly status: 'idle' }
-  | { readonly status: 'error'; readonly message: string }
+  | { readonly status: 'error'; readonly message: string; readonly messageKey?: string }
   | {
       readonly status: 'proposal'
       readonly week: string
       readonly source: 'metin' | 'assistant'
       readonly model?: string
       readonly rows: readonly ProposalRow[]
-      readonly problems: readonly string[]
+      readonly problems: readonly EditProblem[]
       readonly editsJson: string
       readonly instruction: string
     }
@@ -46,7 +53,7 @@ export type EditState =
       readonly status: 'applied'
       readonly week: string
       readonly applied: number
-      readonly problems: readonly string[]
+      readonly problems: readonly EditProblem[]
       readonly hard: number
       readonly soft: number
     }
@@ -90,12 +97,21 @@ function currentCodes(snapshot: PlanSnapshot): Map<string, string> {
   return codes
 }
 
-function buildContext(snapshot: PlanSnapshot, routeCodes: readonly string[], week: string): AssistantContext {
+function buildContext(
+  m: Messages,
+  snapshot: PlanSnapshot,
+  routeCodes: readonly string[],
+  week: string,
+): AssistantContext {
   const codes = currentCodes(snapshot)
   return {
     weekStart: week,
     weekOffset: snapshot.weekOffset,
-    days: snapshot.days.map((day) => ({ dayIndex: day.dayIndex, label: dayLabel(day.dayType), date: day.date })),
+    days: snapshot.days.map((day) => ({
+    dayIndex: day.dayIndex,
+    label: dayLabel(m, day.dayType),
+    date: day.date,
+  })),
     vehicles: snapshot.vehicles.map((vehicle) => ({ plate: vehicle.plate, status: vehicle.status })),
     routeCodes,
     cells: snapshot.vehicles.map((vehicle) => ({
@@ -119,6 +135,7 @@ function buildContext(snapshot: PlanSnapshot, routeCodes: readonly string[], wee
  * edit against the real vehicles and route codes.
  */
 export async function proposeEditsAction(previous: EditState, form: FormData): Promise<EditState> {
+  const { m } = await getMessages()
   void previous
   const week = weekFrom(form)
   const mode = form.get('mode') === 'assistant' ? 'assistant' : 'metin'
@@ -127,7 +144,11 @@ export async function proposeEditsAction(previous: EditState, form: FormData): P
 
   const plan = await loadPlan(db, organisation.id, organisation.rotationAnchorWeek, week)
   if (plan.version === null) {
-    return { status: 'error', message: 'Bu hafta için plan yok. Önce "Haftayı üret" ile planı oluşturun.' }
+    return {
+      status: 'error',
+      messageKey: 'generateFirst',
+      message: 'Bu hafta için plan yok. Önce "Haftayı üret" ile planı oluşturun.',
+    }
   }
 
   const routeRows = await db.select().from(routes).where(eq(routes.organisationId, organisation.id))
@@ -135,37 +156,57 @@ export async function proposeEditsAction(previous: EditState, form: FormData): P
   const vehicles = plan.snapshot.vehicles.map((vehicle) => ({ id: vehicle.id, plate: vehicle.plate }))
 
   let edits: readonly PlanEdit[] = []
-  const problems: string[] = []
+  const problems: EditProblem[] = []
   let model: string | undefined
   const instruction = mode === 'assistant' ? String(form.get('instruction') ?? '').trim() : ''
 
   if (mode === 'metin') {
     const parsed = parseEditText(String(form.get('lines') ?? ''))
     edits = parsed.edits
-    problems.push(...parsed.errors.map((error) => `${error.line} → ${error.reason}`))
+    problems.push(
+      ...parsed.errors.map((error) => ({
+        ...(error.code === undefined ? {} : { code: error.code }),
+        ...(error.params === undefined ? {} : { params: error.params }),
+        text: `${error.line} → ${error.reason}`,
+      })),
+    )
     if (edits.length === 0 && problems.length === 0) {
-      return { status: 'error', message: 'Düzenlenecek satır yok. "plaka gün kod" biçiminde yazın.' }
+      return {
+        status: 'error',
+        messageKey: 'noRows',
+        message: 'Düzenlenecek satır yok. "plaka gün kod" biçiminde yazın.',
+      }
     }
   } else {
     if (instruction === '') {
-      return { status: 'error', message: 'İstek boş. Ne değiştirmek istediğinizi yazın.' }
+      return {
+        status: 'error',
+        messageKey: 'emptyRequest',
+        message: 'İstek boş. Ne değiştirmek istediğinizi yazın.',
+      }
     }
     if (!isAssistantEnabled()) {
-      return { status: 'error', message: 'AI önerisi kapalı. ASSISTANT_ENABLED ve ASSISTANT_API_KEY tanımlanmalı.' }
+      return {
+        status: 'error',
+        messageKey: 'assistantDisabled',
+        message: 'AI önerisi kapalı. ASSISTANT_ENABLED ve ASSISTANT_API_KEY tanımlanmalı.',
+      }
     }
 
-    const answer = await requestEditProposal(buildContext(plan.snapshot, routeCodes, week), instruction)
+    const answer = await requestEditProposal(buildContext(m, plan.snapshot, routeCodes, week), instruction)
     if (!answer.ok) {
       return { status: 'error', message: answer.message }
     }
     edits = answer.answer.edits
-    problems.push(...answer.answer.problems)
+    problems.push(...answer.answer.problems.map((text) => ({ text })))
     model = answer.answer.model
   }
 
   const resolution = resolveEdits(edits, { vehicles, routeCodes })
   const codes = currentCodes(plan.snapshot)
-  const dayByIndex = new Map(plan.snapshot.days.map((day) => [day.dayIndex, dayLabel(day.dayType)]))
+  const dayByIndex = new Map(
+    plan.snapshot.days.map((day) => [day.dayIndex, dayLabel(m, day.dayType)]),
+  )
 
   const rows: ProposalRow[] = resolution.resolved.map((row) => ({
     plate: row.edit.plate,
@@ -176,10 +217,20 @@ export async function proposeEditsAction(previous: EditState, form: FormData): P
     ...(row.edit.reason === undefined ? {} : { reason: row.edit.reason }),
   }))
 
-  problems.push(...resolution.rejected.map((row) => `${row.edit.plate} ${row.edit.dayIndex} → ${row.reason}`))
+  problems.push(
+    ...resolution.rejected.map((row) => ({
+      code: row.code,
+      ...(row.params === undefined ? {} : { params: row.params }),
+      text: `${row.edit.plate} ${row.edit.dayIndex} → ${row.reason}`,
+    })),
+  )
 
   if (rows.length === 0) {
-    return { status: 'error', message: 'Öneri uygulanabilir hücre içermiyor.' }
+    return {
+      status: 'error',
+      messageKey: 'proposalEmpty',
+      message: 'Öneri uygulanabilir hücre içermiyor.',
+    }
   }
 
   return {
@@ -207,7 +258,7 @@ export async function applyProposalAction(previous: EditState, form: FormData): 
 
   const plan = await loadPlan(db, organisation.id, organisation.rotationAnchorWeek, week)
   if (plan.version === null) {
-    return { status: 'error', message: 'Bu hafta için plan yok.' }
+    return { status: 'error', messageKey: 'planMissing', message: 'Bu hafta için plan yok.' }
   }
 
   // The echoed proposal is re-validated: it is never trusted because it came back.
@@ -220,9 +271,13 @@ export async function applyProposalAction(previous: EditState, form: FormData): 
     routeCodes: routeRows.map((row) => row.code),
   })
 
-  const failures = [
-    ...parsed.problems,
-    ...resolution.rejected.map((row) => `${row.edit.plate} → ${row.reason}`),
+  const failures: EditProblem[] = [
+    ...parsed.problems.map((text) => ({ text })),
+    ...resolution.rejected.map((row) => ({
+      code: row.code,
+      ...(row.params === undefined ? {} : { params: row.params }),
+      text: `${row.edit.plate} → ${row.reason}`,
+    })),
   ]
   let applied = 0
 
@@ -238,7 +293,7 @@ export async function applyProposalAction(previous: EditState, form: FormData): 
     if (outcome.ok) {
       applied += 1
     } else {
-      failures.push(`${row.edit.plate} ${row.edit.dayIndex} → ${outcome.reason}`)
+      failures.push({ text: `${row.edit.plate} ${row.edit.dayIndex} → ${outcome.reason}` })
     }
   }
 

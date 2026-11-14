@@ -98,7 +98,7 @@ export async function publishPlanAction(form: FormData): Promise<void> {
 
   const current = await loadPlan(db, organisation.id, organisation.rotationAnchorWeek, weekStart)
   if (current.version === null) {
-    fail(weekStart, 'Bu hafta için plan yok.')
+    fail(weekStart, 'planMissing')
   }
 
   const violations = validatePlan(current.snapshot)
@@ -141,7 +141,7 @@ export async function setCellAction(form: FormData): Promise<void> {
   const rawCode = String(form.get('code') ?? '').trim()
 
   if (plate === '' || dayIndexValue < 1 || dayIndexValue > 7) {
-    fail(weekStart, 'Araç ve gün seçilmeli.')
+    fail(weekStart, 'vehicleAndDay')
   }
 
   const [vehicle] = await db
@@ -155,7 +155,7 @@ export async function setCellAction(form: FormData): Promise<void> {
 
   const current = await loadPlan(db, organisation.id, organisation.rotationAnchorWeek, weekStart)
   if (current.version === null) {
-    fail(weekStart, 'Önce haftayı üretin, sonra hücre düzenleyin.')
+    fail(weekStart, 'generateWeekFirst')
   }
 
   const routeRows = await db.select().from(routes).where(eq(routes.organisationId, organisation.id))

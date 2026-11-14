@@ -3,8 +3,9 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { IBM_Plex_Mono, Inter } from 'next/font/google'
 import { getSession, localMode } from '@/lib/auth'
-import { logoutAction, setRoleAction } from './actions/auth'
-import { RailNav, type RailItem } from './_components/rail-nav'
+import { LOCALES, getMessages, roleLabel, type Locale, type Messages } from '@/lib/i18n'
+import { logoutAction, setLocaleAction, setRoleAction } from './actions/auth'
+import { RailNav } from './_components/rail-nav'
 import './globals.css'
 
 const body = Inter({
@@ -23,35 +24,35 @@ const mono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: 'City Bus Ops',
-  description: 'Şehir içi otobüs operasyon sistemi — planlama, görev, şoför',
+  description:
+    'City bus operations system — planning, duties, drivers. Şehir içi otobüs operasyon sistemi.',
 }
 
-const NAV: ReadonlyArray<RailItem & { roles: readonly string[] }> = [
-  { href: '/', label: 'Özet', roles: ['admin', 'planner', 'dispatcher'] },
-  { href: '/network', label: 'Ağ & Tarife', roles: ['admin', 'planner'] },
-  { href: '/plan', label: 'Haftalık Plan', roles: ['admin', 'planner', 'dispatcher'] },
-  { href: '/drivers', label: 'Şoförler', roles: ['admin', 'planner', 'dispatcher'] },
-  { href: '/reports', label: 'Raporlar', roles: ['admin', 'planner', 'dispatcher'] },
-  { href: '/driver', label: 'Benim Haftam', roles: ['driver'] },
-  { href: '/help', label: 'Nasıl Kullanılır', roles: ['admin', 'planner', 'dispatcher', 'driver'] },
+/** Labels come from the dictionary; the role list decides who sees the link. */
+const NAV: ReadonlyArray<{ href: string; key: keyof Messages['nav']; roles: readonly string[] }> = [
+  { href: '/', key: 'overview', roles: ['admin', 'planner', 'dispatcher'] },
+  { href: '/network', key: 'network', roles: ['admin', 'planner'] },
+  { href: '/plan', key: 'plan', roles: ['admin', 'planner', 'dispatcher'] },
+  { href: '/drivers', key: 'drivers', roles: ['admin', 'planner', 'dispatcher'] },
+  { href: '/reports', key: 'reports', roles: ['admin', 'planner', 'dispatcher'] },
+  { href: '/driver', key: 'driver', roles: ['driver'] },
+  { href: '/help', key: 'help', roles: ['admin', 'planner', 'dispatcher', 'driver'] },
 ]
 
-const ROLE_LABEL: Record<string, string> = {
-  admin: 'yönetici',
-  planner: 'planlama',
-  dispatcher: 'santral',
-  driver: 'şoför',
-}
+const SWITCHABLE_ROLES = ['admin', 'planner', 'dispatcher', 'driver'] as const
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const session = await getSession()
-  const items = NAV.filter((item) => session !== null && item.roles.includes(session.role))
+  const { locale, m } = await getMessages()
+  const items = NAV.filter((item) => session !== null && item.roles.includes(session.role)).map(
+    (item) => ({ href: item.href, label: m.nav[item.key] }),
+  )
   const home = session === null ? '/login' : session.role === 'driver' ? '/driver' : '/'
   const utc = new Date().toISOString().slice(11, 19)
   const local = localMode()
 
   return (
-    <html lang="tr" data-style="planetary-service" className={`${body.variable} ${mono.variable}`}>
+    <html lang={locale} data-style="planetary-service" className={`${body.variable} ${mono.variable}`}>
       <body>
         <div className={session === null ? 'shell anonymous' : 'shell'}>
           {session !== null && (
@@ -59,34 +60,49 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <Link href={home} className="brand">
                 City Bus Ops
               </Link>
-              <RailNav items={items} />
+              <RailNav items={items} label={m.nav.main} />
               <div className="rail-foot">
                 {local ? (
                   <form action={setRoleAction} className="role-switch">
                     <label>
-                      Rol
+                      {m.roles.switchLabel}
                       <select name="role" defaultValue={session.role}>
-                        {Object.entries(ROLE_LABEL).map(([role, label]) => (
+                        {SWITCHABLE_ROLES.map((role) => (
                           <option key={role} value={role}>
-                            {label}
+                            {roleLabel(m, role)}
                           </option>
                         ))}
                       </select>
                     </label>
                     <button type="submit" className="secondary">
-                      Geç
+                      {m.roles.switchSubmit}
                     </button>
                   </form>
                 ) : (
                   <div className="session">
-                    <span title={session.email}>{ROLE_LABEL[session.role] ?? session.role}</span>
+                    <span title={session.email}>{roleLabel(m, session.role)}</span>
                     <form action={logoutAction}>
                       <button type="submit" className="secondary">
-                        Çıkış
+                        {m.login.submit}
                       </button>
                     </form>
                   </div>
                 )}
+                <form action={setLocaleAction} className="lang-switch">
+                  <label>
+                    {m.app.languages.label}
+                    <select name="locale" defaultValue={locale}>
+                      {LOCALES.map((code: Locale) => (
+                        <option key={code} value={code}>
+                          {m.app.languages[code]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="submit" className="secondary">
+                    {locale === 'tr' ? 'EN' : 'TR'}
+                  </button>
+                </form>
                 <div className="rail-clock">{utc} UTC</div>
               </div>
             </aside>

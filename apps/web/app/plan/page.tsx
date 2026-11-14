@@ -1,9 +1,10 @@
 import Link from 'next/link'
-import { RULE_CATALOG, cellLabel, type RuleCode } from '@citybus/domain'
+import { cellLabel } from '@citybus/domain'
 import { requireSession } from '@/lib/auth'
 import { getDb, getOrganisation } from '@/lib/db'
 import { groupDayForWeek, loadPlan, mondayOf } from '@/lib/plan'
-import { dayLabel, formatMinutes } from '@/lib/time'
+import { dayLabel, errorText, format, getMessages, ruleTitle, severityLabel, violationText } from '@/lib/i18n'
+import { formatMinutes } from '@/lib/time'
 import { isAssistantEnabled } from '@/lib/assistant'
 import { generatePlanAction, publishPlanAction, setCellAction } from '../actions/plan'
 import { EditPanel } from './edit-panel'
@@ -22,7 +23,10 @@ export default async function PlanPage({
   }>
 }) {
   await requireSession(['admin', 'planner', 'dispatcher'])
+  const { m } = await getMessages()
   const params = await searchParams
+  const errorMessage = errorText(m, params.error)
+  const noticesMessage = errorText(m, params.notices)
   const organisation = await getOrganisation()
   const weekStart = mondayOf(params.week ?? new Date().toISOString().slice(0, 10))
 
@@ -50,33 +54,44 @@ export default async function PlanPage({
   }
 
   const stamp = new Date().toISOString().slice(11, 16)
-  const status = version === null ? 'plan yok' : version.status === 'published' ? 'yayınlandı' : 'taslak'
+  const status =
+    version === null
+      ? m.plan.statusNone
+      : version.status === 'published'
+        ? m.plan.statusPublished
+        : m.plan.statusDraft
 
   return (
     <>
-      <h1>Haftalık Plan</h1>
+      <h1>{m.plan.title}</h1>
       <p className="lead">
-        <span className="badge">{weekStart} haftası</span>
-        <span className="badge">rotasyon {snapshot.weekOffset}/7</span>
+        <span className="badge">{format(m.plan.weekBadge, { week: weekStart })}</span>
+        <span className="badge">
+          {format(m.plan.rotationBadge, { offset: snapshot.weekOffset })}
+        </span>
         <span className={version?.status === 'published' ? 'badge ok' : 'badge'}>
           <span className={version?.status === 'published' ? 'led ok' : 'led warn'} />
           {status}
         </span>
-        <span className="muted">son güncelleme {stamp} UTC</span>
+        <span className="muted">
+          {m.common.lastUpdate} {stamp} UTC
+        </span>
       </p>
 
-      {params.error !== undefined && <div className="notice error">{params.error}</div>}
-      {params.published !== undefined && <div className="notice">Plan yayınlandı.</div>}
-      {params.edited !== undefined && <div className="notice">{params.edited} hücresi elle düzenlendi ve kilitlendi.</div>}
-      {params.notices !== undefined && <div className="notice">{params.notices}</div>}
+      {errorMessage !== undefined && <div className="notice error">{errorMessage}</div>}
+      {params.published !== undefined && <div className="notice">{m.plan.publishedNotice}</div>}
+      {params.edited !== undefined && (
+        <div className="notice">{format(m.plan.editedNotice, { count: params.edited })}</div>
+      )}
+      {noticesMessage !== undefined && <div className="notice">{noticesMessage}</div>}
 
       <form className="inline" action="/plan">
         <label>
-          Hafta (herhangi bir gün)
+          {m.plan.weekLabel}
           <input type="date" name="week" defaultValue={weekStart} />
         </label>
         <button type="submit" className="secondary">
-          Git
+          {m.common.go}
         </button>
       </form>
 
@@ -84,29 +99,29 @@ export default async function PlanPage({
         <form action={generatePlanAction}>
           <input type="hidden" name="week" value={weekStart} />
           <button type="submit" className={version === null ? undefined : 'secondary'}>
-            {version === null ? 'Haftayı üret' : 'Yeniden üret'}
+            {version === null ? m.plan.generate : m.plan.regenerate}
           </button>
         </form>
         {version !== null && (
           <form action={publishPlanAction}>
             <input type="hidden" name="week" value={weekStart} />
             <button type="submit" className={hardCount > 0 ? 'secondary' : undefined}>
-              Yayınla
+              {m.plan.publish}
             </button>
           </form>
         )}
         <Link href={`/api/plan/xlsx?week=${weekStart}`} className="button-link">
-          Excel indir
+          {m.common.excel}
         </Link>
       </div>
 
-      <h3>Görev grupları bu hafta</h3>
+      <h3>{m.plan.groups}</h3>
       <table>
         <thead>
           <tr>
-            <th>Grup</th>
-            <th className="num">Araç sayısı</th>
-            <th>Gün</th>
+            <th>{m.common.group}</th>
+            <th className="num">{m.plan.groupVehicleCount}</th>
+            <th>{m.common.day}</th>
           </tr>
         </thead>
         <tbody>
@@ -114,25 +129,27 @@ export default async function PlanPage({
             <tr key={group.id}>
               <td>{group.name}</td>
               <td className="num">{group.vehicleCount}</td>
-              <td>{dayLabel(dayTypeOf(groupDayForWeek(group.referenceDayIndex, snapshot.weekOffset)))}</td>
+              <td>
+                {dayLabel(m, dayTypeOf(groupDayForWeek(group.referenceDayIndex, snapshot.weekOffset)))}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
 
       {version === null ? (
-        <div className="notice">Bu hafta için plan yok. &quot;Haftayı üret&quot; ile başlayın.</div>
+        <div className="notice">{m.plan.noPlan}</div>
       ) : (
         <>
-          <h3>Plan tablosu</h3>
+          <h3>{m.plan.matrix}</h3>
           <div className="scroll-x">
             <table className="matrix">
               <thead>
                 <tr>
-                  <th>Plaka</th>
+                  <th>{m.common.plate}</th>
                   {snapshot.days.map((day) => (
                     <th key={day.dayIndex}>
-                      {dayLabel(day.dayType).slice(0, 3)}
+                      {dayLabel(m, day.dayType).slice(0, 3)}
                       <br />
                       <span className="muted">
                         {day.date.slice(5)}
@@ -161,13 +178,17 @@ export default async function PlanPage({
                           key={day.dayIndex}
                           className={label === 'YAT' ? 'muted' : undefined}
                           title={
-                            cell?.firstTripMinute != null ? `ilk sefer ${formatMinutes(cell.firstTripMinute)}` : undefined
+                            cell?.firstTripMinute != null
+                              ? format(m.plan.firstTripTitle, {
+                                  time: formatMinutes(cell.firstTripMinute),
+                                })
+                              : undefined
                           }
                         >
                           {label}
                           {cell?.locked === true && (
-                            <span className="badge soft" title="elle kilitli" style={{ marginLeft: 4 }}>
-                              kilit
+                            <span className="badge soft" title={m.plan.lockedTitle} style={{ marginLeft: 4 }}>
+                              {m.common.locked}
                             </span>
                           )}
                         </td>
@@ -176,7 +197,7 @@ export default async function PlanPage({
                   </tr>
                 ))}
                 <tr>
-                  <td className="muted">/gün</td>
+                  <td className="muted">{m.plan.perDay}</td>
                   {snapshot.days.map((day) => (
                     <td key={day.dayIndex} className="num muted">
                       {dutyPerDay.get(day.dayIndex) ?? 0}
@@ -188,19 +209,23 @@ export default async function PlanPage({
           </div>
 
           <h3>
-            Kural denetimi ·{' '}
-            <span className={hardCount > 0 ? 'badge hard' : 'badge'}>{hardCount} sert</span>{' '}
-            <span className="badge soft">{violations.length - hardCount} yumuşak</span>
+            {m.plan.ruleCheck} ·{' '}
+            <span className={hardCount > 0 ? 'badge hard' : 'badge'}>
+              {format(m.plan.hardCount, { count: hardCount })}
+            </span>{' '}
+            <span className="badge soft">
+              {format(m.plan.softCount, { count: violations.length - hardCount })}
+            </span>
           </h3>
           {violations.length === 0 ? (
-            <div className="notice">Kural ihlali yok.</div>
+            <div className="notice">{m.plan.noViolations}</div>
           ) : (
             <table>
               <thead>
                 <tr>
-                  <th>Kural</th>
-                  <th>Şiddet</th>
-                  <th>Mesaj</th>
+                  <th>{m.common.rule}</th>
+                  <th>{m.severity.title}</th>
+                  <th>{m.common.message}</th>
                 </tr>
               </thead>
               <tbody>
@@ -209,33 +234,31 @@ export default async function PlanPage({
                     <td>
                       <strong>{violation.code}</strong>
                       <br />
-                      <span className="muted">
-                        {violation.code in RULE_CATALOG
-                          ? RULE_CATALOG[violation.code as RuleCode].title
-                          : 'Şoför çalışma kuralı'}
-                      </span>
+                      <span className="muted">{ruleTitle(m, violation.code) ?? m.plan.driverRule}</span>
                     </td>
                     <td>
-                      <span className={`badge ${violation.severity}`}>{violation.severity === 'hard' ? 'sert' : 'yumuşak'}</span>
+                      <span className={`badge ${violation.severity}`}>
+                        {severityLabel(m, violation.severity)}
+                      </span>
                     </td>
-                    <td>{violation.message}</td>
+                    <td>{violationText(m, violation)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
 
-          <h3>Toplu düzenleme · metin veya AI</h3>
-          <EditPanel week={weekStart} assistantEnabled={isAssistantEnabled()} />
+          <h3>{m.plan.bulkTitle}</h3>
+          <EditPanel week={weekStart} assistantEnabled={isAssistantEnabled()} messages={m} />
 
-          <h3>Hücre düzenle (elle, kilitlenir)</h3>
+          <h3>{m.plan.manualTitle}</h3>
           <form className="inline" action={setCellAction}>
             <input type="hidden" name="week" value={weekStart} />
             <label>
-              Araç
+              {m.common.vehicle}
               <select name="plate" required defaultValue="">
                 <option value="" disabled>
-                  seç
+                  {m.common.select}
                 </option>
                 {snapshot.vehicles.map((vehicle) => (
                   <option key={vehicle.id} value={vehicle.plate}>
@@ -245,26 +268,22 @@ export default async function PlanPage({
               </select>
             </label>
             <label>
-              Gün
+              {m.common.day}
               <select name="dayIndex" required defaultValue="1">
                 {snapshot.days.map((day) => (
                   <option key={day.dayIndex} value={day.dayIndex}>
-                    {dayLabel(day.dayType)} {day.date.slice(5)}
+                    {dayLabel(m, day.dayType)} {day.date.slice(5)}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Kod
-              <input name="code" placeholder="9A · -20 · x · 12.00 · YAT" required />
+              {m.common.code}
+              <input name="code" placeholder={m.plan.codePlaceholder} required />
             </label>
-            <button type="submit">Kaydet</button>
+            <button type="submit">{m.common.save}</button>
           </form>
-          <p className="hint">
-            Hücre kodları tablodaki gibi yazılır: hat kodu (<code>9A</code>), ek görev (
-            <code>-20</code>), nöbet (<code>x</code>), ilk sefer saati (<code>12.00</code>), yatan araç (
-            <code>YAT</code> veya boş).
-          </p>
+          <p className="hint">{m.plan.cellHint}</p>
         </>
       )}
 

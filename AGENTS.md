@@ -2,7 +2,8 @@
 
 City bus operations system (planning, duties, drivers) for a municipal fixed-route fleet.
 Monorepo, TypeScript end to end. **Code, docs, commits and identifiers are English; the
-operator-facing UI is Turkish.**
+operator-facing UI is Turkish by default and also ships in English** (`apps/web/lib/i18n/`,
+`docs/07-design-system.md` §Interface language — never hard-code a sentence in a page).
 
 ## Layout
 

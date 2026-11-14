@@ -4,7 +4,8 @@ import { absences, defectReports, drivers, planVersions, swapRequests } from '@c
 import { requireSession } from '@/lib/auth'
 import { getDb, getOrganisation } from '@/lib/db'
 import { loadPlan, mondayOf } from '@/lib/plan'
-import { dayLabel, formatMinutes } from '@/lib/time'
+import { dayLabel, errorText, format, getMessages } from '@/lib/i18n'
+import { formatMinutes } from '@/lib/time'
 import {
   closeDefectAction,
   createDriverAction,
@@ -15,7 +16,6 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-const SEVERITY_LABEL: Record<string, string> = { low: 'düşük', medium: 'orta', high: 'yüksek' }
 
 export default async function DriversPage({
   searchParams,
@@ -23,7 +23,10 @@ export default async function DriversPage({
   searchParams: Promise<{ week?: string; error?: string; notices?: string; roster?: string }>
 }) {
   await requireSession(['admin', 'planner', 'dispatcher'])
+  const { m } = await getMessages()
   const params = await searchParams
+  const errorMessage = errorText(m, params.error)
+  const noticesMessage = errorText(m, params.notices)
   const organisation = await getOrganisation()
   const weekStart = mondayOf(params.week ?? new Date().toISOString().slice(0, 10))
   const db = getDb()
@@ -73,50 +76,55 @@ export default async function DriversPage({
 
   return (
     <>
-      <h1>Şoförler</h1>
+      <h1>{m.drivers.title}</h1>
       <p className="lead">
-        <span className="badge">{weekStart} haftası</span>
-        <span className="badge">{driverRows.length} şoför</span>
-        <span className="badge">{plan.snapshot.roster.length} atama</span>
+        <span className="badge">{format(m.plan.weekBadge, { week: weekStart })}</span>
+        <span className="badge">{format(m.drivers.driverCount, { count: driverRows.length })}</span>
+        <span className="badge">
+          {format(m.drivers.assignmentCount, { count: plan.snapshot.roster.length })}
+        </span>
         {pending.length > 0 && (
           <span className="badge soft">
             <span className="led warn" />
-            {pending.length} bekleyen takas
+            {format(m.drivers.pendingSwaps, { count: pending.length })}
           </span>
         )}
-        <span className="muted">son güncelleme {stamp} UTC</span>
+        <span className="muted">
+          {m.common.lastUpdate} {stamp} UTC
+        </span>
       </p>
 
-      {params.error !== undefined && <div className="notice error">{params.error}</div>}
+      {errorMessage !== undefined && <div className="notice error">{errorMessage}</div>}
       {params.roster !== undefined && (
-        <div className="notice">{params.roster} görev şoförlere dağıtıldı.</div>
+        <div className="notice">{format(m.drivers.rosterNotice, { count: params.roster })}</div>
       )}
-      {params.notices !== undefined && <div className="notice error">{params.notices}</div>}
+      {noticesMessage !== undefined && <div className="notice error">{noticesMessage}</div>}
 
-      <h3>Haftalık görevlendirme</h3>
+      <h3>{m.drivers.weekly}</h3>
       <div className="toolbar">
         <form action={generateRosterAction}>
           <input type="hidden" name="week" value={weekStart} />
-          <button type="submit">Şoför ata (run cutting)</button>
+          <button type="submit">{m.drivers.runCutting}</button>
         </form>
       </div>
       <p className="hint">
-        Görev penceresi, hattın o günkü ilk kalkışından son varışına kadar hesaplanır (+
-        {LABOUR_LIMITS.preparationMinutes} dk hazırlık, +{LABOUR_LIMITS.cleaningMinutes} dk temizlik). Mola, pencere içindeki
-        boşluktur; L1–L5 kuralları bu değerlerle denetlenir.
+        {format(m.drivers.cuttingHint, {
+          prep: LABOUR_LIMITS.preparationMinutes,
+          clean: LABOUR_LIMITS.cleaningMinutes,
+        })}
       </p>
 
       {plan.snapshot.roster.length > 0 && (
         <table>
           <thead>
             <tr>
-              <th>Gün</th>
-              <th>Şoför</th>
-              <th>Araç</th>
-              <th className="num">Başlangıç</th>
-              <th className="num">Bitiş</th>
-              <th className="num">Sürüş</th>
-              <th className="num">Mola</th>
+              <th>{m.common.day}</th>
+              <th>{m.common.driver}</th>
+              <th>{m.common.vehicle}</th>
+              <th className="num">{m.common.start}</th>
+              <th className="num">{m.common.end}</th>
+              <th className="num">{m.common.driving}</th>
+              <th className="num">{m.common.rest}</th>
             </tr>
           </thead>
           <tbody>
@@ -126,13 +134,17 @@ export default async function DriversPage({
                 const day = plan.snapshot.days.find((row) => row.dayIndex === entry.dayIndex)
                 return (
                   <tr key={`${entry.dayIndex}-${entry.driverId}`}>
-                    <td>{day === undefined ? entry.dayIndex : dayLabel(day.dayType)}</td>
+                    <td>{day === undefined ? entry.dayIndex : dayLabel(m, day.dayType)}</td>
                     <td>{driverById.get(entry.driverId)?.fullName ?? entry.driverId}</td>
-                    <td>{vehiclePlate.get(entry.vehicleId) ?? '—'}</td>
+                    <td>{vehiclePlate.get(entry.vehicleId) ?? m.common.none}</td>
                     <td className="num">{formatMinutes(entry.startMinute)}</td>
                     <td className="num">{formatMinutes(entry.endMinute)}</td>
-                    <td className="num muted">{Math.round(entry.drivingMinutes / 60)} s</td>
-                    <td className="num muted">{entry.breakMinutes} dk</td>
+                    <td className="num muted">
+                      {Math.round(entry.drivingMinutes / 60)} h
+                    </td>
+                    <td className="num muted">
+                      {entry.breakMinutes} {m.common.units.minutes}
+                    </td>
                   </tr>
                 )
               })}
@@ -140,28 +152,34 @@ export default async function DriversPage({
         </table>
       )}
 
-      <h3>Takas istekleri ({pending.length} bekleyen)</h3>
+      <h3>{m.driver.swapRequest}</h3>
       {swaps.length === 0 ? (
-        <div className="notice">Takas isteği yok.</div>
+        <div className="notice">{m.drivers.noSwaps}</div>
       ) : (
         <table>
           <thead>
             <tr>
-              <th>Hafta</th>
-              <th>Gün</th>
-              <th>Şoför</th>
-              <th>Not</th>
-              <th>Durum</th>
+              <th>{m.common.week}</th>
+              <th>{m.common.day}</th>
+              <th>{m.common.driver}</th>
+              <th>{m.drivers.swapNote}</th>
+              <th>{m.common.status}</th>
               <th />
             </tr>
           </thead>
           <tbody>
             {swaps.map((swap) => (
               <tr key={swap.id}>
-                <td className="muted">{weekByVersion.get(swap.planVersionId) ?? '—'}</td>
-                <td>{dayLabel((plan.snapshot.days.find((d) => d.dayIndex === swap.dayIndex)?.dayType ?? 'monday') as string)}</td>
+                <td className="muted">{weekByVersion.get(swap.planVersionId) ?? m.common.none}</td>
+                <td>
+                  {dayLabel(
+                    m,
+                    (plan.snapshot.days.find((d) => d.dayIndex === swap.dayIndex)?.dayType ??
+                      'monday') as string,
+                  )}
+                </td>
                 <td>{driverById.get(swap.fromDriverId)?.fullName ?? swap.fromDriverId}</td>
-                <td className="muted">{swap.note ?? '—'}</td>
+                <td className="muted">{swap.note ?? m.common.none}</td>
                 <td>
                   <span className={`badge ${swap.status === 'pending' ? 'soft' : ''}`}>{swap.status}</span>
                 </td>
@@ -171,13 +189,13 @@ export default async function DriversPage({
                       <form action={decideSwapAction}>
                         <input type="hidden" name="requestId" value={swap.id} />
                         <input type="hidden" name="decision" value="approved" />
-                        <button type="submit">Onayla</button>
+                        <button type="submit">{m.drivers.approve}</button>
                       </form>
                       <form action={decideSwapAction}>
                         <input type="hidden" name="requestId" value={swap.id} />
                         <input type="hidden" name="decision" value="rejected" />
                         <button type="submit" className="danger">
-                          Reddet
+                          {m.drivers.reject}
                         </button>
                       </form>
                     </div>
@@ -189,17 +207,17 @@ export default async function DriversPage({
         </table>
       )}
 
-      <h3>Arıza bildirimleri</h3>
+      <h3>{m.drivers.defects}</h3>
       {defectRows.length === 0 ? (
-        <div className="notice">Açık arıza bildirimi yok.</div>
+        <div className="notice">{m.drivers.noDefects}</div>
       ) : (
         <table>
           <thead>
             <tr>
-              <th>Araç</th>
-              <th>Şiddet</th>
-              <th>Açıklama</th>
-              <th>Tarih</th>
+              <th>{m.common.vehicle}</th>
+              <th>{m.severity.title}</th>
+              <th>{m.common.description}</th>
+              <th>{m.common.date}</th>
               <th />
             </tr>
           </thead>
@@ -208,7 +226,13 @@ export default async function DriversPage({
               <tr key={defect.id}>
                 <td>{vehiclePlate.get(defect.vehicleId) ?? defect.vehicleId}</td>
                 <td>
-                  <span className="badge hard">{SEVERITY_LABEL[defect.severity] ?? defect.severity}</span>
+                  <span className="badge hard">
+                    {defect.severity === 'low'
+                      ? m.drivers.severityLow
+                      : defect.severity === 'high'
+                        ? m.drivers.severityHigh
+                        : m.drivers.severityMedium}
+                  </span>
                 </td>
                 <td>{defect.description}</td>
                 <td className="muted num">{defect.reportedAt.toISOString().slice(0, 16).replace('T', ' ')}</td>
@@ -216,7 +240,7 @@ export default async function DriversPage({
                   <form action={closeDefectAction}>
                     <input type="hidden" name="defectId" value={defect.id} />
                     <button type="submit" className="secondary">
-                      Kapat
+                      {m.drivers.close}
                     </button>
                   </form>
                 </td>
@@ -226,30 +250,30 @@ export default async function DriversPage({
         </table>
       )}
 
-      <h3>Şoför ekle</h3>
+      <h3>{m.drivers.addDriver}</h3>
       <form className="inline" action={createDriverAction}>
         <label>
-          Sicil no
+          {m.drivers.registerNo}
           <input name="employeeNo" required maxLength={20} />
         </label>
         <label>
-          Ad soyad
+          {m.drivers.fullName}
           <input name="fullName" required />
         </label>
         <label>
-          Ehliyet
+          {m.drivers.licence}
           <input name="licenceClass" defaultValue="D" maxLength={4} />
         </label>
-        <button type="submit">Ekle</button>
+        <button type="submit">{m.common.add}</button>
       </form>
 
       <table>
         <thead>
           <tr>
-            <th>Sicil</th>
-            <th>Ad</th>
-            <th>Ehliyet</th>
-            <th className="num">Bu hafta görev</th>
+            <th>{m.drivers.registerNo}</th>
+            <th>{m.common.name}</th>
+            <th>{m.drivers.licence}</th>
+            <th className="num">{m.drivers.dutiesThisWeek}</th>
           </tr>
         </thead>
         <tbody>
@@ -264,13 +288,13 @@ export default async function DriversPage({
         </tbody>
       </table>
 
-      <h3>İzin / rapor ekle</h3>
+      <h3>{m.drivers.addAbsence}</h3>
       <form className="inline" action={markAbsenceAction}>
         <label>
-          Şoför
+          {m.common.driver}
           <select name="driverId" required defaultValue="">
             <option value="" disabled>
-              seç
+              {m.common.select}
             </option>
             {driverRows.map((driver) => (
               <option key={driver.id} value={driver.id}>
@@ -280,38 +304,42 @@ export default async function DriversPage({
           </select>
         </label>
         <label>
-          Başlangıç
+          {m.common.start}
           <input type="date" name="dateFrom" required />
         </label>
         <label>
-          Bitiş
+          {m.common.end}
           <input type="date" name="dateTo" />
         </label>
         <label>
-          Tür
+          {m.common.status}
           <select name="type" defaultValue="leave">
-            <option value="leave">izin</option>
-            <option value="sick">rapor</option>
-            <option value="other">diğer</option>
+            <option value="leave">{m.drivers.absenceLeave}</option>
+            <option value="sick">{m.drivers.absenceSick}</option>
+            <option value="other">{m.drivers.absenceOther}</option>
           </select>
         </label>
-        <button type="submit">Kaydet</button>
+        <button type="submit">{m.common.save}</button>
       </form>
 
       {absenceRows.length > 0 && (
         <table>
           <thead>
             <tr>
-              <th>Şoför</th>
-              <th>Tür</th>
-              <th>Başlangıç</th>
-              <th>Bitiş</th>
+              <th>{m.common.driver}</th>
+              <th>{m.common.status}</th>
+              <th>{m.common.start}</th>
+              <th>{m.common.end}</th>
             </tr>
           </thead>
           <tbody>
             {absenceRows.map((row) => (
               <tr key={row.id}>
-                <td>{row.driverId === null ? '—' : driverById.get(row.driverId)?.fullName ?? row.driverId}</td>
+                <td>
+                  {row.driverId === null
+                    ? m.common.none
+                    : (driverById.get(row.driverId)?.fullName ?? row.driverId)}
+                </td>
                 <td>{row.type}</td>
                 <td>{row.dateFrom}</td>
                 <td>{row.dateTo}</td>

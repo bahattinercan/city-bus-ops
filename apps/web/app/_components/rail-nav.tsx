@@ -11,11 +11,11 @@ function isCurrent(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-export function RailNav({ items }: { items: readonly RailItem[] }) {
+export function RailNav({ items, label }: { items: readonly RailItem[]; label: string }) {
   const pathname = usePathname()
 
   return (
-    <nav className="rail-nav" aria-label="Ana menü">
+    <nav className="rail-nav" aria-label={label}>
       {items.map((item) => (
         <Link
           key={item.href}

@@ -3,6 +3,7 @@ import { asc, eq, sql } from 'drizzle-orm'
 import { routes, stops } from '@citybus/db'
 import { requireSession } from '@/lib/auth'
 import { allRows, getDb, getOrganisation } from '@/lib/db'
+import { errorText, format, getMessages } from '@/lib/i18n'
 import { createRouteAction, createStopAction } from '../actions/network'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +14,9 @@ export default async function NetworkPage({
   searchParams: Promise<{ error?: string }>
 }) {
   await requireSession(['admin', 'planner'])
+  const { m } = await getMessages()
   const { error } = await searchParams
+  const errorMessage = errorText(m, error)
   const organisation = await getOrganisation()
   const db = getDb()
 
@@ -42,45 +45,48 @@ export default async function NetworkPage({
 
   return (
     <>
-      <h1>Ağ &amp; Tarife</h1>
+      <h1>{m.network.title}</h1>
       <p className="lead">
-        <span>hatlar, duraklar ve seferler</span>
-        <span className="badge">{routeRows.length} hat</span>
-        <span className="badge">{stopRows.length} durak</span>
-        <span className="muted">GTFS dışa aktarımı hazır · son güncelleme {stamp} UTC</span>
+        <span>{m.network.lead}</span>
+        <span className="badge">{format(m.network.routeCount, { count: routeRows.length })}</span>
+        <span className="badge">{format(m.network.stopCount, { count: stopRows.length })}</span>
+        <span className="muted">
+          {m.network.exportReady}
+          {"·"} {m.common.lastUpdate} {stamp} UTC
+        </span>
       </p>
 
-      {error !== undefined && <div className="notice error">{error}</div>}
+      {errorMessage !== undefined && <div className="notice error">{errorMessage}</div>}
 
-      <h3>Hat ekle</h3>
+      <h3>{m.network.addRoute}</h3>
       <form className="inline" action={createRouteAction}>
         <label>
-          Hat kodu
-          <input name="code" placeholder="9AT" required maxLength={6} />
+          {m.network.routeCode}
+          <input name="code" placeholder={m.network.routeCodePlaceholder} required maxLength={6} />
         </label>
         <label>
-          Ad
-          <input name="name" placeholder="(boşsa kod kullanılır)" />
+          {m.common.name}
+          <input name="name" placeholder={m.network.namePlaceholderEmptyUsesCode} />
         </label>
         <label>
-          <span>Engelli erişimi</span>
+          <span>{m.network.requireLowFloor}</span>
           <input type="checkbox" name="requiredLowFloor" />
         </label>
         <label>
-          <span>Klima</span>
+          <span>{m.network.requireAc}</span>
           <input type="checkbox" name="requiredAc" />
         </label>
-        <button type="submit">Ekle</button>
+        <button type="submit">{m.common.add}</button>
       </form>
 
       <table>
         <thead>
           <tr>
-            <th>Kod</th>
-            <th>Ad</th>
-            <th className="num">Durak</th>
-            <th className="num">Sefer</th>
-            <th>Gereksinim</th>
+            <th>{m.common.code}</th>
+            <th>{m.common.name}</th>
+            <th className="num">{m.home.cards.stops}</th>
+            <th className="num">{m.home.cards.trips}</th>
+            <th>{m.common.requirement}</th>
             <th />
           </tr>
         </thead>
@@ -96,7 +102,7 @@ export default async function NetworkPage({
                 <td className="num">{stat?.stop_count ?? '0'}</td>
                 <td className="num">{stat?.trip_count ?? '0'}</td>
                 <td>
-                  {[route.requiredLowFloor ? 'engelli' : null, route.requiredAc ? 'klima' : null]
+                  {[route.requiredLowFloor ? m.network.requirementLowFloor : null, route.requiredAc ? m.network.requirementAc : null]
                     .filter(Boolean)
                     .map((requirement) => (
                       <span key={requirement} className="badge" style={{ marginRight: 4 }}>
@@ -106,7 +112,7 @@ export default async function NetworkPage({
                   {!route.requiredLowFloor && !route.requiredAc && <span className="muted">—</span>}
                 </td>
                 <td>
-                  <Link href={`/network/${encodeURIComponent(route.code)}`}>Aç</Link>
+                  <Link href={`/network/${encodeURIComponent(route.code)}`}>{m.common.open}</Link>
                 </td>
               </tr>
             )
@@ -114,29 +120,29 @@ export default async function NetworkPage({
           {routeRows.length === 0 && (
             <tr>
               <td colSpan={6} className="muted">
-                Kayıtlı hat yok.
+                {m.network.noRoutes}
               </td>
             </tr>
           )}
         </tbody>
       </table>
 
-      <h3>Durak ekle</h3>
+      <h3>{m.network.addStop}</h3>
       <form className="inline" action={createStopAction}>
         <label>
-          Durak kodu
+          {m.network.stopCode}
           <input name="code" placeholder="S001" required maxLength={20} />
         </label>
         <label>
           Ad
-          <input name="name" placeholder="Otogar" required />
+          <input name="name" placeholder={m.network.stopNamePlaceholder} required />
         </label>
         <label>
-          Enlem
+          {m.network.latitude}
           <input name="latitude" placeholder="39.42" inputMode="decimal" />
         </label>
         <label>
-          Boylam
+          {m.network.longitude}
           <input name="longitude" placeholder="29.98" inputMode="decimal" />
         </label>
         <button type="submit">Ekle</button>
@@ -147,7 +153,7 @@ export default async function NetworkPage({
           <tr>
             <th>Kod</th>
             <th>Ad</th>
-            <th>Konum</th>
+            <th>{m.common.location}</th>
           </tr>
         </thead>
         <tbody>
@@ -167,7 +173,7 @@ export default async function NetworkPage({
           {stopRows.length === 0 && (
             <tr>
               <td colSpan={3} className="muted">
-                Kayıtlı durak yok.
+                {m.network.noStops}
               </td>
             </tr>
           )}

@@ -1,11 +1,10 @@
 import Link from 'next/link'
 import { and, desc, eq, sql } from 'drizzle-orm'
-import { RULE_CATALOG, type RuleCode } from '@citybus/domain'
 import { auditLog, defectReports, drivers, planVersions, ruleViolations } from '@citybus/db'
 import { requireSession } from '@/lib/auth'
 import { allRows, getDb, getOrganisation } from '@/lib/db'
 import { loadPlan, mondayOf } from '@/lib/plan'
-import { dayLabel } from '@/lib/time'
+import { dayLabel, format, getMessages, ruleTitle, severityLabel } from '@/lib/i18n'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +14,7 @@ export default async function ReportsPage({
   searchParams: Promise<{ week?: string }>
 }) {
   await requireSession(['admin', 'planner', 'dispatcher'])
+  const { m } = await getMessages()
   const params = await searchParams
   const organisation = await getOrganisation()
   const weekStart = mondayOf(params.week ?? new Date().toISOString().slice(0, 10))
@@ -77,65 +77,67 @@ export default async function ReportsPage({
 
   return (
     <>
-      <h1>Raporlar</h1>
+      <h1>{m.reports.title}</h1>
       <p className="lead">
         <span>{organisation.name}</span>
-        <span className="badge">{weekStart} haftası</span>
-        <span className="muted">son güncelleme {stamp} UTC</span>
+        <span className="badge">{format(m.plan.weekBadge, { week: weekStart })}</span>
+        <span className="muted">
+          {m.common.lastUpdate} {stamp} UTC
+        </span>
       </p>
 
       <form className="inline" action="/reports">
         <label>
-          Hafta
+          {m.common.week}
           <input type="date" name="week" defaultValue={weekStart} />
         </label>
-        <button type="submit">Git</button>
+        <button type="submit">{m.common.go}</button>
         <Link href={`/api/plan/xlsx?week=${weekStart}`} className="button-link">
-          Excel indir
+          {m.common.excel}
         </Link>
       </form>
 
       <div className="grid">
         <div className="card">
-          <div className="label">Haftalık görev</div>
+          <div className="label">{m.reports.weeklyDuty}</div>
           <div className="value">
             {dutyTotal}
-            <span className="unit">araç-gün</span>
+            <span className="unit">{m.reports.units.vehicleDays}</span>
           </div>
         </div>
         <div className="card">
-          <div className="label">Nöbet günü</div>
+          <div className="label">{m.reports.standbyDays}</div>
           <div className="value">
             {standbyTotal}
-            <span className="unit">gün</span>
+            <span className="unit">{m.reports.units.days}</span>
           </div>
         </div>
         <div className="card">
-          <div className="label">Şoför görevi</div>
+          <div className="label">{m.reports.driverAssignments}</div>
           <div className="value">
             {plan.snapshot.roster.length}
-            <span className="unit">atama</span>
+            <span className="unit">{m.reports.units.assignments}</span>
           </div>
         </div>
         <div className="card">
-          <div className="label">Şoför</div>
+          <div className="label">{m.home.cards.drivers}</div>
           <div className="value">
             {driverCount[0]?.count ?? 0}
-            <span className="unit">kişi</span>
+            <span className="unit">{m.common.units.people}</span>
           </div>
         </div>
         <div className="card">
-          <div className="label">Aktif araç</div>
+          <div className="label">{m.reports.activeVehicles}</div>
           <div className="value">
             {vehicleCount}
-            <span className="unit">adet</span>
+            <span className="unit">{m.common.units.vehicles}</span>
           </div>
         </div>
         <div className={openDefects[0] === undefined || openDefects[0].count > 0 ? 'card crit' : 'card ok'}>
-          <div className="label">Açık arıza</div>
+          <div className="label">{m.reports.openDefects}</div>
           <div className="value">
             {openDefects[0]?.count ?? 0}
-            <span className="unit">kayıt</span>
+            <span className="unit">{m.reports.units.records}</span>
           </div>
           <div className="foot">
             <span className={openDefects[0] === undefined || openDefects[0].count > 0 ? 'led crit' : 'led ok'} />
@@ -143,36 +145,36 @@ export default async function ReportsPage({
           </div>
         </div>
         <div className="card">
-          <div className="label">Tanımlı sefer</div>
+          <div className="label">{m.reports.definedTrips}</div>
           <div className="value">
             {tripCount}
             <span className="unit">adet</span>
           </div>
         </div>
         <div className="card">
-          <div className="label">Tarife saati</div>
+          <div className="label">{m.reports.timetableHours}</div>
           <div className="value">
             {Math.round(tripMinutes / 60)}
-            <span className="unit">saat</span>
+            <span className="unit">{m.reports.units.hours}</span>
           </div>
-          <div className="foot">toplam süre</div>
+          <div className="foot">{m.reports.totalSpan}</div>
         </div>
       </div>
 
-      <h3>Günlük dağılım</h3>
+      <h3>{m.reports.daily}</h3>
       <table>
         <thead>
           <tr>
-            <th>Gün</th>
-            <th>Tarih</th>
-            <th className="num">Görev</th>
-            <th className="num">Nöbet</th>
+            <th>{m.common.day}</th>
+            <th>{m.common.date}</th>
+            <th className="num">{m.driver.duty}</th>
+            <th className="num">{m.reports.standbyDays}</th>
           </tr>
         </thead>
         <tbody>
           {plan.snapshot.days.map((day) => (
             <tr key={day.dayIndex}>
-              <td>{dayLabel(day.dayType)}</td>
+              <td>{dayLabel(m, day.dayType)}</td>
               <td className="muted">{day.date}</td>
               <td className="num">{dutyPerDay.get(day.dayIndex) ?? 0}</td>
               <td className="num">
@@ -183,16 +185,16 @@ export default async function ReportsPage({
         </tbody>
       </table>
 
-      <h3>Kural ihlalleri</h3>
+      <h3>{m.reports.violations}</h3>
       {violationSummary.length === 0 ? (
-        <div className="notice">Bu hafta için kayıtlı ihlal yok.</div>
+        <div className="notice">{m.reports.noViolations}</div>
       ) : (
         <table>
           <thead>
             <tr>
-              <th>Kural</th>
-              <th>Şiddet</th>
-              <th className="num">Adet</th>
+              <th>{m.common.rule}</th>
+              <th>{m.severity.title}</th>
+              <th className="num">{m.common.count}</th>
             </tr>
           </thead>
           <tbody>
@@ -201,11 +203,11 @@ export default async function ReportsPage({
                 <td>
                   <strong>{row.code}</strong>{' '}
                   <span className="muted">
-                    {row.code in RULE_CATALOG ? RULE_CATALOG[row.code as RuleCode].title : 'şoför çalışma kuralı'}
+                    {ruleTitle(m, row.code) ?? m.plan.driverRule}
                   </span>
                 </td>
                 <td>
-                  <span className={`badge ${row.severity}`}>{row.severity === 'hard' ? 'sert' : 'yumuşak'}</span>
+                  <span className={`badge ${row.severity}`}>{severityLabel(m, row.severity)}</span>
                 </td>
                 <td className="num">{row.count}</td>
               </tr>
@@ -214,16 +216,16 @@ export default async function ReportsPage({
         </table>
       )}
 
-      <h3>Son işlemler (denetim izi)</h3>
+      <h3>{m.reports.auditTitle}</h3>
       {auditRows.length === 0 ? (
-        <div className="notice">Henüz denetim kaydı yok.</div>
+        <div className="notice">{m.reports.noAudit}</div>
       ) : (
         <table>
           <thead>
             <tr>
-              <th>Zaman</th>
-              <th>İşlem</th>
-              <th>Varlık</th>
+              <th>{m.reports.at}</th>
+              <th>{m.reports.action}</th>
+              <th>{m.reports.entity}</th>
             </tr>
           </thead>
           <tbody>
@@ -243,13 +245,13 @@ export default async function ReportsPage({
         </table>
       )}
 
-      <h3>Plan geçmişi</h3>
+      <h3>{m.reports.history}</h3>
       <table>
         <thead>
           <tr>
-            <th>Hafta</th>
-            <th>Durum</th>
-            <th>Yayın</th>
+            <th>{m.common.week}</th>
+            <th>{m.common.status}</th>
+            <th>{m.reports.publishedAt}</th>
           </tr>
         </thead>
         <tbody>
@@ -261,13 +263,17 @@ export default async function ReportsPage({
               <td>
                 <span className="badge">{row.status}</span>
               </td>
-              <td className="muted">{row.publishedAt === null ? '—' : row.publishedAt.toISOString().slice(0, 16).replace('T', ' ')}</td>
+              <td className="muted">
+                {row.publishedAt === null
+                  ? m.common.none
+                  : row.publishedAt.toISOString().slice(0, 16).replace('T', ' ')}
+              </td>
             </tr>
           ))}
           {planRows.length === 0 && (
             <tr>
               <td colSpan={3} className="muted">
-                Henüz plan yok.
+                {m.reports.noHistory}
               </td>
             </tr>
           )}

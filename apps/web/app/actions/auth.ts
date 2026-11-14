@@ -3,13 +3,14 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { clearSessionCookie, ensureDemoUsers, isRole, login, setLocalRole } from '@/lib/auth'
+import { isLocale, setLocaleCookie } from '@/lib/i18n'
 
 export async function loginAction(formData: FormData): Promise<void> {
   const email = String(formData.get('email') ?? '')
   const password = String(formData.get('password') ?? '')
 
   if (email === '' || password === '') {
-    redirect('/login?error=' + encodeURIComponent('E-posta ve şifre zorunlu.'))
+    redirect('/login?error=' + encodeURIComponent('credentialRequired'))
   }
 
   await ensureDemoUsers()
@@ -31,6 +32,17 @@ export async function setRoleAction(formData: FormData): Promise<void> {
   await setLocalRole(role)
   revalidatePath('/', 'layout')
   redirect(role === 'driver' ? '/driver' : '/')
+}
+
+/** Remembers the interface language; every page re-renders through the new dictionary. */
+export async function setLocaleAction(formData: FormData): Promise<void> {
+  const locale = formData.get('locale')
+  if (!isLocale(locale)) {
+    redirect('/')
+  }
+  await setLocaleCookie(locale)
+  revalidatePath('/', 'layout')
+  redirect('/')
 }
 
 export async function logoutAction(): Promise<void> {

@@ -53,6 +53,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
         severity: RULE_CATALOG.R1.severity,
         dayIndex: assignment.dayIndex,
         vehicleId: assignment.vehicleId,
+        key: 'R1.duplicateDuty',
+        params: { plate: plateOf(vehicleById, assignment.vehicleId), date: dateOf(dayByIndex, assignment.dayIndex) ?? '' },
         message: `Araç ${plateOf(vehicleById, assignment.vehicleId)} ${dateOf(dayByIndex, assignment.dayIndex)} gününde birden fazla göreve atanmış.`,
       })
     }
@@ -69,6 +71,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
         severity: RULE_CATALOG.R2.severity,
         dayIndex: trip.dayIndex,
         vehicleId: trip.vehicleId,
+        key: 'R2.tripTwoVehicles',
+        params: { trip: trip.tripId, first: plateOf(vehicleById, firstVehicle), second: plateOf(vehicleById, trip.vehicleId) },
         message: `Sefer ${trip.tripId} hem ${plateOf(vehicleById, firstVehicle)} hem ${plateOf(vehicleById, trip.vehicleId)} üzerinde görünüyor.`,
       })
     }
@@ -81,6 +85,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
         severity: RULE_CATALOG.R16.severity,
         dayIndex: trip.dayIndex,
         vehicleId: trip.vehicleId,
+        key: 'R16.wrongDayType',
+        params: { trip: trip.tripId, tripDayType: trip.dayType, dayType: day.dayType },
         message: `Sefer ${trip.tripId} ${trip.dayType} tarifesinde tanımlı, gün ${day.dayType}.`,
       })
     }
@@ -94,6 +100,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
           severity: RULE_CATALOG.R12.severity,
           dayIndex: trip.dayIndex,
           vehicleId: vehicle.id,
+          key: 'R12.noLowFloorTrip',
+          params: { plate: vehicle.plate, route: route.code },
           message: `${vehicle.plate} ${route.code} hattı için engelli erişimi gerektiriyor ancak araçta yok.`,
         })
       }
@@ -103,6 +111,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
           severity: RULE_CATALOG.R12.severity,
           dayIndex: trip.dayIndex,
           vehicleId: vehicle.id,
+          key: 'R12.noAcTrip',
+          params: { plate: vehicle.plate, route: route.code },
           message: `${vehicle.plate} ${route.code} hattı için klima gerekiyor ancak araçta yok.`,
         })
       }
@@ -121,6 +131,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
         severity: RULE_CATALOG.R3.severity,
         dayIndex: assignment.dayIndex,
         vehicleId: vehicle.id,
+        key: 'R3.notActive',
+        params: { plate, date: date ?? '', status: statusLabel(vehicle.status) },
         message: `${plate} ${date} günü ${statusLabel(vehicle.status)} durumunda, görev alamaz.`,
       })
     }
@@ -133,6 +145,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
           severity: RULE_CATALOG.R3.severity,
           dayIndex: assignment.dayIndex,
           vehicleId: assignment.vehicleId,
+          key: 'R3.absent',
+          params: { plate, date: date ?? '' },
           message: `${plate} ${date} günü izinli/bakımda, görev alamaz.`,
         })
       }
@@ -149,6 +163,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
         severity: RULE_CATALOG.R4.severity,
         dayIndex: assignment.dayIndex,
         vehicleId: assignment.vehicleId,
+        key: 'R4.idleWithDuty',
+        params: { plate },
         message: `${plate} yatan araç olarak işaretli ama görev bilgisi taşıyor.`,
       })
     }
@@ -164,6 +180,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
             dayIndex: assignment.dayIndex,
             vehicleId: assignment.vehicleId,
             groupId: group.id,
+            key: 'R7.rotationDay',
+            params: { group: group.name, expected: dayLabel(expected), actual: dayLabel(assignment.dayIndex) },
             message: `${group.name} bu hafta ${dayLabel(expected)} gününde olmalıydı, ${dayLabel(assignment.dayIndex)} gününe atanmış.`,
           })
         }
@@ -179,6 +197,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
           severity: RULE_CATALOG.R12.severity,
           dayIndex: assignment.dayIndex,
           vehicleId: vehicle.id,
+          key: 'R12.noLowFloor',
+          params: { plate, route: route.code },
           message: `${plate} ${route.code} hattı için gerekli engelli erişimine sahip değil.`,
         })
       }
@@ -188,6 +208,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
           severity: RULE_CATALOG.R12.severity,
           dayIndex: assignment.dayIndex,
           vehicleId: vehicle.id,
+          key: 'R12.noAc',
+          params: { plate, route: route.code },
           message: `${plate} ${route.code} hattı için gerekli klimaya sahip değil.`,
         })
       }
@@ -205,6 +227,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
         severity: RULE_CATALOG.R9.severity,
         dayIndex: standby.dayIndex,
         vehicleId: standby.vehicleId,
+        key: 'R9.unknownStandbyCode',
+        params: { plate: plateOf(vehicleById, standby.vehicleId), code: standby.rawCode },
         message: `${plateOf(vehicleById, standby.vehicleId)} nöbet kodu "${standby.rawCode}" hat sözlüğünde bulunamadı.`,
       })
     }
@@ -215,6 +239,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
         code: 'R9',
         severity: RULE_CATALOG.R9.severity,
         vehicleId,
+        key: 'R9.tooManyStandbys',
+        params: { plate: plateOf(vehicleById, vehicleId), count },
         message: `${plateOf(vehicleById, vehicleId)} bu hafta ${count} nöbet günü almış, en fazla 1 olmalı.`,
       })
     }
@@ -240,6 +266,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
         code: 'R14',
         severity: RULE_CATALOG.R14.severity,
         groupId,
+        key: 'R14.groupTwoDays',
+        params: { group: group.name, days: labels },
         message: `${group.name} bu hafta hem ${labels} günlerine atanmış.`,
       })
     }
@@ -250,6 +278,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
         code: 'R13',
         severity: RULE_CATALOG.R13.severity,
         groupId,
+        key: 'R13.groupCount',
+        params: { group: group.name, count, expected: group.vehicleCount },
         message: `${group.name} grubunda ${count} araç var, tanımlı sayı ${group.vehicleCount}.`,
       })
     }
@@ -277,6 +307,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
           code: 'R5',
           severity: RULE_CATALOG.R5.severity,
           dayIndex: day.dayIndex,
+          key: 'R5.dailyCount',
+          params: { date: day.date, count, min: target.min, max: target.max },
           message: `${day.date}: ${count} araç çalışıyor, beklenen ${target.min}–${target.max}.`,
         })
       }
@@ -289,6 +321,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
       violations.push({
         code: 'R6',
         severity: RULE_CATALOG.R6.severity,
+        key: 'R6.weekendBelowAverage',
+        params: { saturday, sunday, average: weekdayAverage.toFixed(1) },
         message: `Hafta sonu ${saturday}/${sunday} araç sayısı hafta içi ortalamasının (${weekdayAverage.toFixed(1)}) altında.`,
       })
     }
@@ -301,6 +335,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
       violations.push({
         code: 'R15',
         severity: RULE_CATALOG.R15.severity,
+        key: 'R15.weeklyTotal',
+        params: { computed, reported: snapshot.reportedWeeklyVehicleDays },
         message: `Haftalık toplam ${computed}, tabloda yazan ${snapshot.reportedWeeklyVehicleDays}.`,
       })
     }
@@ -325,6 +361,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
             code: 'R17',
             severity: RULE_CATALOG.R17.severity,
             vehicleId,
+            key: 'R17.standbyBalance',
+            params: { plate: plateOf(vehicleById, vehicleId), total, limit: min + 1 },
             message: `${plateOf(vehicleById, vehicleId)} son 7 haftada ${total} nöbet günü almış; dengeli dağılımda en fazla ${min + 1} olmalı.`,
           })
         }
@@ -345,6 +383,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
       severity: RULE_CATALOG.R18.severity,
       dayIndex: assignment.dayIndex,
       vehicleId: assignment.vehicleId,
+      key: 'R18.dutyAfterStandby',
+      params: { plate: plateOf(vehicleById, assignment.vehicleId), date: date ?? '' },
       message: `${plateOf(vehicleById, assignment.vehicleId)} ${date} günü nöbetçiydi, ertesi gün yeniden atama almış.`,
     })
   }
@@ -369,6 +409,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
         driverId: entry.driverId,
         vehicleId: entry.vehicleId,
         message: issue.message,
+        key: issue.key,
+        params: issue.params,
       })
     }
   }
@@ -393,6 +435,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
           dayIndex: current.dayIndex,
           driverId,
           message: issue.message,
+          key: issue.key,
+          params: issue.params,
         })
       }
     }
@@ -411,6 +455,8 @@ export function validatePlan(snapshot: PlanSnapshot): Violation[] {
         code: 'L5',
         severity: DRIVER_RULE_CATALOG.L5.severity,
         driverId,
+        key: 'L5.consecutiveDays',
+        params: { days: longest, limit: LABOUR_LIMITS.maxConsecutiveWorkDays },
         message: `Şoför ${longest} gün üst üste çalışmış, en fazla ${LABOUR_LIMITS.maxConsecutiveWorkDays} olmalı.`,
       })
     }

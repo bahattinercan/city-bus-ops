@@ -4,7 +4,8 @@ import { defectReports, drivers, swapRequests, vehicles } from '@citybus/db'
 import { requireSession } from '@/lib/auth'
 import { getDb, getOrganisation } from '@/lib/db'
 import { loadPlan, mondayOf } from '@/lib/plan'
-import { dayLabel, formatMinutes } from '@/lib/time'
+import { dayLabel, errorText, format, getMessages } from '@/lib/i18n'
+import { formatMinutes } from '@/lib/time'
 import { reportDefectAction, requestSwapAction } from '../actions/drivers'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +16,9 @@ export default async function DriverPage({
   searchParams: Promise<{ week?: string; requested?: string; defect?: string; error?: string }>
 }) {
   const session = await requireSession(['driver'])
+  const { m } = await getMessages()
   const params = await searchParams
+  const errorMessage = errorText(m, params.error)
   const organisation = await getOrganisation()
   const weekStart = mondayOf(params.week ?? new Date().toISOString().slice(0, 10))
   const db = getDb()
@@ -23,8 +26,8 @@ export default async function DriverPage({
   if (session.driverId === null) {
     return (
       <>
-        <h1>Benim Haftam</h1>
-        <div className="notice error">Bu hesap bir şoför kaydına bağlı değil. Yöneticiye başvurun.</div>
+        <h1>{m.driver.title}</h1>
+        <div className="notice error">{m.errors.driverNotLinked}</div>
       </>
     )
   }
@@ -55,40 +58,44 @@ export default async function DriverPage({
 
   return (
     <>
-      <h1>Benim Haftam</h1>
+      <h1>{m.driver.title}</h1>
       <p className="lead">
-        <span>{driver?.fullName ?? 'Şoför'}</span>
-        <span className="badge">sicil {driver?.employeeNo ?? '—'}</span>
-        <span className="badge">{weekStart} haftası</span>
-        <span className="muted">son güncelleme {new Date().toISOString().slice(11, 16)} UTC</span>
+        <span>{driver?.fullName ?? m.common.driver}</span>
+        <span className="badge">
+          {m.driver.registerNo} {driver?.employeeNo ?? m.common.none}
+        </span>
+        <span className="badge">{format(m.plan.weekBadge, { week: weekStart })}</span>
+        <span className="muted">
+          {m.common.lastUpdate} {new Date().toISOString().slice(11, 16)} UTC
+        </span>
       </p>
 
-      {params.error !== undefined && <div className="notice error">{params.error}</div>}
-      {params.requested !== undefined && <div className="notice">Takas isteğiniz santrale gönderildi.</div>}
-      {params.defect !== undefined && <div className="notice">Arıza bildirimi kaydedildi.</div>}
+      {errorMessage !== undefined && <div className="notice error">{errorMessage}</div>}
+      {params.requested !== undefined && <div className="notice">{m.driver.swapSent}</div>}
+      {params.defect !== undefined && <div className="notice">{m.driver.defectSent}</div>}
 
       <form className="inline" action="/driver">
         <label>
-          Hafta
+          {m.common.week}
           <input type="date" name="week" defaultValue={weekStart} />
         </label>
         <button type="submit" className="secondary">
-          Git
+          {m.common.go}
         </button>
       </form>
 
-      <h3>Görevlerim</h3>
+      <h3>{m.driver.myDuties}</h3>
       {myEntries.length === 0 ? (
-        <div className="notice">Bu hafta atanmış göreviniz yok.</div>
+        <div className="notice">{m.driver.noDutiesThisWeek}</div>
       ) : (
         <table>
           <thead>
             <tr>
-              <th>Gün</th>
-              <th>Araç</th>
-              <th className="num">Başlangıç</th>
-              <th className="num">Bitiş</th>
-              <th className="num">Mola</th>
+              <th>{m.common.day}</th>
+              <th>{m.common.vehicle}</th>
+              <th className="num">{m.common.start}</th>
+              <th className="num">{m.common.end}</th>
+              <th className="num">{m.common.rest}</th>
             </tr>
           </thead>
           <tbody>
@@ -97,13 +104,15 @@ export default async function DriverPage({
               return (
                 <tr key={entry.dayIndex}>
                   <td>
-                    {day === undefined ? entry.dayIndex : dayLabel(day.dayType)}{' '}
+                    {day === undefined ? entry.dayIndex : dayLabel(m, day.dayType)}{' '}
                     <span className="muted">{day?.date.slice(5)}</span>
                   </td>
-                  <td>{plateById.get(entry.vehicleId) ?? '—'}</td>
+                  <td>{plateById.get(entry.vehicleId) ?? m.common.none}</td>
                   <td className="num">{formatMinutes(entry.startMinute)}</td>
                   <td className="num">{formatMinutes(entry.endMinute)}</td>
-                  <td className="num muted">{entry.breakMinutes} dk</td>
+                  <td className="num muted">
+                    {entry.breakMinutes} {m.common.units.minutes}
+                  </td>
                 </tr>
               )
             })}
@@ -111,50 +120,52 @@ export default async function DriverPage({
         </table>
       )}
       <p className="hint">
-        Görev penceresi: en az {LABOUR_LIMITS.minRestBetweenDutiesMinutes / 60} saat iki görev arası dinlenme, en fazla{' '}
-        {LABOUR_LIMITS.maxDrivingMinutes / 60} saat sürüş.
+        {format(m.driver.labourHint, {
+          rest: LABOUR_LIMITS.minRestBetweenDutiesMinutes / 60,
+          driving: LABOUR_LIMITS.maxDrivingMinutes / 60,
+        })}
       </p>
 
       {myEntries.length > 0 && (
         <>
-          <h3>Takas isteği</h3>
+          <h3>{m.driver.swapRequest}</h3>
           <form className="inline" action={requestSwapAction}>
             <input type="hidden" name="week" value={weekStart} />
             <label>
-              Gün
+              {m.common.day}
               <select name="dayIndex" required defaultValue={String(myEntries[0]?.dayIndex ?? 1)}>
                 {myEntries.map((entry) => {
                   const day = plan.snapshot.days.find((row) => row.dayIndex === entry.dayIndex)
                   return (
                     <option key={entry.dayIndex} value={entry.dayIndex}>
-                      {dayLabel(day?.dayType ?? 'monday')} {day?.date.slice(5)}
+                      {dayLabel(m, day?.dayType ?? 'monday')} {day?.date.slice(5)}
                     </option>
                   )
                 })}
               </select>
             </label>
             <label>
-              Not
-              <input name="note" placeholder="neden?" maxLength={200} />
+              {m.common.note}
+              <input name="note" placeholder={m.driver.swapNotePlaceholder} maxLength={200} />
             </label>
-            <button type="submit">Santralden izin iste</button>
+            <button type="submit">{m.driver.swapSubmit}</button>
           </form>
           {myRequests.length > 0 && (
             <p className="hint">
               <span className="led warn" />
-              Bekleyen istek: {myRequests.length}
+              {format(m.driver.swapPending, { count: myRequests.length })}
             </p>
           )}
         </>
       )}
 
-      <h3>Arıza bildir</h3>
+      <h3>{m.driver.defect}</h3>
       <form className="inline" action={reportDefectAction}>
         <label>
-          Araç
+          {m.driver.defectVehicle}
           <select name="plate" required defaultValue="">
             <option value="" disabled>
-              seç
+              {m.common.select}
             </option>
             {vehicleRows.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.plateNumber}>
@@ -164,27 +175,27 @@ export default async function DriverPage({
           </select>
         </label>
         <label>
-          Şiddet
+          {m.driver.defectSeverity}
           <select name="severity" defaultValue="medium">
-            <option value="low">düşük</option>
-            <option value="medium">orta</option>
-            <option value="high">yüksek</option>
+            <option value="low">{m.driver.severityLow}</option>
+            <option value="medium">{m.driver.severityMedium}</option>
+            <option value="high">{m.driver.severityHigh}</option>
           </select>
         </label>
         <label>
-          Açıklama
+          {m.driver.defectDescription}
           <input name="description" required maxLength={300} />
         </label>
-        <button type="submit">Bildir</button>
+        <button type="submit">{m.driver.defectSubmit}</button>
       </form>
 
       {myDefects.length > 0 && (
         <table>
           <thead>
             <tr>
-              <th>Araç</th>
-              <th>Açıklama</th>
-              <th>Durum</th>            </tr>
+              <th>{m.common.vehicle}</th>
+              <th>{m.common.description}</th>
+              <th>{m.common.status}</th>            </tr>
           </thead>
           <tbody>
             {myDefects.map((defect) => (

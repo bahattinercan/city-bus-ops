@@ -5,7 +5,10 @@ import { buildWeeklyWorkbook, type WeeklySheetRow } from '@citybus/xlsx'
 import { getSession } from '@/lib/auth'
 import { getDb, getOrganisation } from '@/lib/db'
 import { groupDayForWeek, loadPlan, mondayOf } from '@/lib/plan'
-import { dayLabel } from '@/lib/time'
+// The printed sheet is the operator's form: it stays Turkish even when the UI is English.
+import { MESSAGES, dayLabel } from '@/lib/i18n'
+
+const SHEET = MESSAGES.tr
 
 export const dynamic = 'force-dynamic'
 
@@ -79,14 +82,19 @@ export async function GET(request: Request) {
 
   const rotation = plan.snapshot.groups.map((group) => ({
     group: group.name,
-    dayLabel: dayLabel(dayTypeOf(groupDayForWeek(group.referenceDayIndex, plan.snapshot.weekOffset))),
+    dayLabel: dayLabel(
+      SHEET,
+      dayTypeOf(groupDayForWeek(group.referenceDayIndex, plan.snapshot.weekOffset)),
+    ),
     vehicleCount: group.vehicleCount,
   }))
 
   const buffer = await buildWeeklyWorkbook({
     organisationName: organisation.name,
     weekStart,
-    dayLabels: DAY_TYPES.map((dayType: DayType) => dayLabel(dayType).toLocaleUpperCase('tr-TR')),
+    dayLabels: DAY_TYPES.map((dayType: DayType) =>
+      dayLabel(SHEET, dayType).toLocaleUpperCase('tr-TR'),
+    ),
     rows,
     dailyCounts,
     rotation,

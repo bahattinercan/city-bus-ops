@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm'
 import { cyclePosition } from '@citybus/domain'
 import { requireSession } from '@/lib/auth'
 import { getOrganisation, allRows } from '@/lib/db'
+import { format, getMessages } from '@/lib/i18n'
 import { mondayOf, weeksBetween } from '@/lib/plan'
 
 export const dynamic = 'force-dynamic'
@@ -48,6 +49,7 @@ const ORBIT_BODIES = Array.from({ length: 7 }, (_, index) => {
 
 export default async function Home() {
   await requireSession(['admin', 'planner', 'dispatcher'])
+  const { m } = await getMessages()
   const organisation = await getOrganisation()
   const summary = await counts(organisation.id)
   const stamp = new Date().toISOString().slice(11, 16)
@@ -57,72 +59,76 @@ export default async function Home() {
 
   return (
     <>
-      <h1>Özet</h1>
+      <h1>{m.home.title}</h1>
       <p className="lead">
         <span>{organisation.name}</span>
-        <span className="badge">çapa {organisation.rotationAnchorWeek}</span>
-        <span className="badge">7 haftalık döngü</span>
-        <span className="muted">son güncelleme {stamp} UTC</span>
+        <span className="badge">
+          {m.home.anchor} {organisation.rotationAnchorWeek}
+        </span>
+        <span className="badge">{m.home.cycle}</span>
+        <span className="muted">
+          {m.common.lastUpdate} {stamp} UTC
+        </span>
       </p>
 
       <div className="split">
         <div className="grid">
           <div className="card">
-            <div className="label">Araç</div>
+            <div className="label">{m.home.cards.vehicles}</div>
             <div className="value">
               {summary.vehicles}
-              <span className="unit">adet</span>
+              <span className="unit">{m.common.units.vehicles}</span>
             </div>
           </div>
           <div className="card">
-            <div className="label">Hat</div>
+            <div className="label">{m.home.cards.routes}</div>
             <div className="value">
               {summary.routes}
-              <span className="unit">adet</span>
+              <span className="unit">{m.common.units.routes}</span>
             </div>
           </div>
           <div className="card">
-            <div className="label">Durak</div>
+            <div className="label">{m.home.cards.stops}</div>
             <div className="value">
               {summary.stops}
-              <span className="unit">adet</span>
+              <span className="unit">{m.common.units.stops}</span>
             </div>
           </div>
           <div className={summary.trips === 0 ? 'card warn' : 'card'}>
-            <div className="label">Sefer</div>
+            <div className="label">{m.home.cards.trips}</div>
             <div className="value">
               {summary.trips}
-              <span className="unit">adet</span>
+              <span className="unit">{m.common.units.trips}</span>
             </div>
             <div className="foot">
               <span className={summary.trips === 0 ? 'led warn' : 'led ok'} />
-              {summary.trips === 0 ? 'tarife boş' : 'tarife hazır'}
+              {summary.trips === 0 ? m.home.timetableEmpty : m.home.timetableReady}
             </div>
           </div>
           <div className="card">
-            <div className="label">Şoför</div>
+            <div className="label">{m.home.cards.drivers}</div>
             <div className="value">
               {summary.drivers}
-              <span className="unit">kişi</span>
+              <span className="unit">{m.common.units.people}</span>
             </div>
           </div>
           <div className="card">
-            <div className="label">Plan haftası</div>
+            <div className="label">{m.home.cards.planWeeks}</div>
             <div className="value">
               {summary.plans}
-              <span className="unit">hafta</span>
+              <span className="unit">{m.common.units.weeks}</span>
             </div>
           </div>
         </div>
 
-        <section className="orbit-panel" aria-label="Rotasyon konumu">
-          <div className="label">Rotasyon</div>
+        <section className="orbit-panel" aria-label={m.home.rotationAria}>
+          <div className="label">{m.home.rotation}</div>
           <div className="orbit-field">
             <svg
               className="orbit"
               viewBox="0 0 120 120"
               role="img"
-              aria-label={`7 haftalık döngüde ${cycle}. hafta`}
+              aria-label={format(m.home.rotationWeekAria, { week: cycle })}
             >
               <circle className="ring-inner" cx="60" cy="60" r="28" />
               <circle className="ring-outer" cx="60" cy="60" r="46" />
@@ -139,45 +145,39 @@ export default async function Home() {
                 {cycle}/7
               </text>
               <text className="centre-label" x="60" y="72">
-                HAFTA
+                {m.home.rotationUnit}
               </text>
             </svg>
           </div>
           <div className="foot">
             <span className="led live" />
-            bu hafta {thisMonday}
+            {format(m.home.rotationFoot, { date: thisMonday })}
           </div>
         </section>
       </div>
 
-      <h3>Sonraki adım</h3>
+      <h3>{m.home.nextStep}</h3>
       {summary.trips === 0 ? (
-        <div className="notice warn">
-          Tarife boş. <Link href="/network">Ağ &amp; Tarife</Link> ekranından hat, durak ve sefer ekleyin;
-          seferler olmadan haftalık plan üretilemez.
-        </div>
+        <div className="notice warn">{m.home.nextStepEmpty}</div>
       ) : (
-        <div className="notice">
-          Tarife hazır. <Link href="/plan">Haftalık Plan</Link> ekranından haftayı üretip kurallara göre
-          doğrulayabilirsiniz.
-        </div>
+        <div className="notice">{m.home.nextStepPlan}</div>
       )}
 
-      <h3>Sistem</h3>
+      <h3>{m.home.system}</h3>
       <table>
         <tbody>
           <tr>
-            <td>Kural kataloğu</td>
-            <td className="muted">R1–R18 (13 sert / 5 yumuşak) + şoför çalışma kuralları L1–L5</td>
+            <td>{m.home.systemRules}</td>
+            <td className="muted">{m.home.systemRulesValue}</td>
           </tr>
           <tr>
-            <td>Rotasyon</td>
-            <td className="muted">7 haftalık görev grubu gün kayması — resmî kural, ihlal onayı bloke eder</td>
+            <td>{m.home.systemRotation}</td>
+            <td className="muted">{m.home.systemRotationValue}</td>
           </tr>
           <tr>
-            <td>Çıktılar</td>
+            <td>{m.home.systemOutputs}</td>
             <td className="muted">
-              <Link href="/api/gtfs">GTFS arşivi (zip)</Link> · haftalık plan ve Excel raporları
+              <Link href="/api/gtfs">{m.home.gtfsArchive}</Link> {m.home.outputsTail}
             </td>
           </tr>
         </tbody>

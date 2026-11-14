@@ -33,6 +33,9 @@ export type DutySpan = {
 export type LabourIssue = {
   readonly code: 'L1' | 'L2' | 'L3' | 'L4' | 'L5'
   readonly message: string
+  /** Stable message id plus data for the UI translation layer (see Violation.key). */
+  readonly key: string
+  readonly params: Readonly<Record<string, string | number>>
 }
 
 export function dutyMinutes(span: Pick<DutySpan, 'startMinute' | 'endMinute'>): number {
@@ -47,6 +50,11 @@ export function evaluateDutySpan(span: DutySpan): LabourIssue[] {
   if (span.drivingMinutes > LABOUR_LIMITS.maxDrivingMinutes) {
     issues.push({
       code: 'L1',
+      key: 'L1.drivingTooLong',
+      params: {
+        driving: formatMinutes(span.drivingMinutes),
+        limit: formatMinutes(LABOUR_LIMITS.maxDrivingMinutes),
+      },
       message: `Sürüş süresi ${formatMinutes(span.drivingMinutes)}, en fazla ${formatMinutes(LABOUR_LIMITS.maxDrivingMinutes)} olmalı.`,
     })
   }
@@ -54,6 +62,8 @@ export function evaluateDutySpan(span: DutySpan): LabourIssue[] {
   if (span_ > LABOUR_LIMITS.maxDutyMinutes) {
     issues.push({
       code: 'L2',
+      key: 'L2.dutyTooLong',
+      params: { duty: formatMinutes(span_), limit: formatMinutes(LABOUR_LIMITS.maxDutyMinutes) },
       message: `Görev süresi ${formatMinutes(span_)}, en fazla ${formatMinutes(LABOUR_LIMITS.maxDutyMinutes)} olmalı.`,
     })
   }
@@ -63,6 +73,12 @@ export function evaluateDutySpan(span: DutySpan): LabourIssue[] {
   if (span.breakMinutes < requiredBreakMinutes) {
     issues.push({
       code: 'L3',
+      key: 'L3.breakTooShort',
+      params: {
+        driving: formatMinutes(span.drivingMinutes),
+        required: requiredBreakMinutes,
+        given: span.breakMinutes,
+      },
       message: `${formatMinutes(span.drivingMinutes)} sürüş için ${requiredBreakMinutes} dk mola gerekli, verilen ${span.breakMinutes} dk.`,
     })
   }
@@ -93,6 +109,11 @@ export function evaluateRest(
   return [
     {
       code: 'L4',
+      key: 'L4.restTooShort',
+      params: {
+        rest: formatMinutes(rest),
+        limit: formatMinutes(LABOUR_LIMITS.minRestBetweenDutiesMinutes),
+      },
       message: `İki görev arasında ${formatMinutes(rest)} dinlenme var, en az ${formatMinutes(LABOUR_LIMITS.minRestBetweenDutiesMinutes)} olmalı.`,
     },
   ]

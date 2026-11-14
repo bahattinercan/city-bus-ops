@@ -26,20 +26,6 @@ export function parseClock(input: string): number {
   return hours * 60 + minutes
 }
 
-const TR_DAYS: Record<string, string> = {
-  monday: 'Pazartesi',
-  tuesday: 'Salı',
-  wednesday: 'Çarşamba',
-  thursday: 'Perşembe',
-  friday: 'Cuma',
-  saturday: 'Cumartesi',
-  sunday: 'Pazar',
-}
-
-export function dayLabel(dayType: string): string {
-  return TR_DAYS[dayType] ?? dayType
-}
-
 /** Monday of the week containing `date` (UTC), as YYYY-MM-DD. */
 export function weekStart(date: Date): string {
   const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
