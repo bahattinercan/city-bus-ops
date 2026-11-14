@@ -4,17 +4,17 @@ import { and, eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import {
-  RouteCode,
   blocksPublishing,
   generateWeeklyPlan,
-  parseSheetCell,
   validatePlan,
   type AssignmentRef,
+  type DayIndex,
 } from '@citybus/domain'
-import { assignments, planVersions, routes, standbys, trips, vehicles } from '@citybus/db'
+import { planVersions, routes, trips, vehicles } from '@citybus/db'
 import { recordAudit } from '@/lib/audit'
+import { writePlanCell } from '@/lib/cell-write'
 import { getDb, getOrganisation } from '@/lib/db'
-import { loadPlan, mondayOf, savePlan, saveViolations } from '@/lib/plan'
+import { loadPlan, mondayOf, savePlan, saveViolations, standbyRouteIdOf } from '@/lib/plan'
 
 function fail(week: string, message: string): never {
   redirect(`/plan?week=${week}&error=${encodeURIComponent(message)}`)
@@ -161,90 +161,16 @@ export async function setCellAction(form: FormData): Promise<void> {
   const routeRows = await db.select().from(routes).where(eq(routes.organisationId, organisation.id))
   const routeByCode = new Map(routeRows.map((route) => [route.code, route.id]))
 
-  const cell = parseSheetCell(rawCode)
-  let status: 'duty' | 'standby' | 'idle' = 'duty'
-  let routeId: string | null = null
-  let extraDutyRouteId: string | null = null
-  let firstTripMinute: number | null = null
-
-  switch (cell.kind) {
-    case 'duty':
-      routeId = routeByCode.get(cell.route.value) ?? null
-      break
-    case 'extraDuty':
-      extraDutyRouteId = routeByCode.get(cell.route.value) ?? null
-      routeId = null
-      break
-    case 'standby':
-      status = 'standby'
-      break
-    case 'startTime':
-      firstTripMinute = cell.minutes
-      break
-    case 'empty':
-      status = 'idle'
-      break
-    case 'text': {
-      try {
-        routeId = routeByCode.get(RouteCode.parse(cell.raw).value) ?? null
-      } catch {
-        fail(weekStart, `Hücre kodu anlaşılmadı: "${cell.raw}"`)
-      }
-      break
-    }
-  }
-
-  const existing = current.snapshot.assignments.find(
-    (assignment) => assignment.dayIndex === dayIndexValue && assignment.vehicleId === vehicle.id,
-  )
-
-  if (existing === undefined) {
-    await db.insert(assignments).values({
-      planVersionId: current.version.id,
-      dayIndex: dayIndexValue,
-      vehicleId: vehicle.id,
-      status,
-      routeId,
-      extraDutyRouteId,
-      firstTripMinute,
-      rawCode,
-      locked: true,
-    })
-  } else {
-    const nextStatus = cell.kind === 'startTime' ? existing.status : status
-    const nextRouteId = cell.kind === 'startTime' ? existing.routeId : routeId
-    await db
-      .update(assignments)
-      .set({
-        status: nextStatus,
-        routeId: nextRouteId,
-        extraDutyRouteId,
-        firstTripMinute: firstTripMinute ?? existing.firstTripMinute,
-        dutyGroupId: cell.kind === 'startTime' ? existing.groupId : null,
-        rawCode,
-        locked: true,
-      })
-      .where(
-        and(
-          eq(assignments.planVersionId, current.version.id),
-          eq(assignments.dayIndex, dayIndexValue),
-          eq(assignments.vehicleId, vehicle.id),
-        ),
-      )
-  }
-
-  await db
-    .delete(standbys)
-    .where(and(eq(standbys.planVersionId, current.version.id), eq(standbys.vehicleId, vehicle.id)))
-
-  if (status === 'standby') {
-    await db.insert(standbys).values({
-      planVersionId: current.version.id,
-      dayIndex: dayIndexValue,
-      vehicleId: vehicle.id,
-      routeId: null,
-      rawCode: rawCode === '' ? 'x' : rawCode,
-    })
+  const outcome = await writePlanCell(db, {
+    planVersionId: current.version.id,
+    vehicleId: vehicle.id,
+    dayIndex: dayIndexValue as DayIndex,
+    rawCode,
+    routeIdByCode: routeByCode,
+    standbyRouteId: standbyRouteIdOf(current.snapshot),
+  })
+  if (!outcome.ok) {
+    fail(weekStart, outcome.reason)
   }
 
   const refreshed = await loadPlan(db, organisation.id, organisation.rotationAnchorWeek, weekStart)
@@ -256,7 +182,7 @@ export async function setCellAction(form: FormData): Promise<void> {
     action: 'plan.cell.edit',
     entity: 'assignment',
     entityId: `${weekStart}:${plate}:${dayIndexValue}`,
-    payload: { rawCode, status, routeId, extraDutyRouteId, firstTripMinute },
+    payload: { rawCode, kind: outcome.cell.kind },
   })
 
   revalidatePath('/plan')

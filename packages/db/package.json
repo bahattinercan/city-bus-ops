@@ -17,10 +17,11 @@
   },
   "dependencies": {
     "@citybus/domain": "workspace:*",
-    "drizzle-orm": "^0.45.4",
-    "postgres": "^4.1.1"
+    "better-sqlite3": "^12.6.0",
+    "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.19.0",
     "drizzle-kit": "^0.31.11",
     "typescript": "^5.9.3",

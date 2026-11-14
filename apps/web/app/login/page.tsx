@@ -17,9 +17,9 @@ export default async function LoginPage({
   }
 
   return (
-    <>
+    <div className="auth">
       <h1>Giriş</h1>
-      <p className="lead">Şehir içi otobüs operasyon sistemi.</p>
+      <p className="lead">Şehir içi otobüs operasyon sistemi</p>
 
       {error !== undefined && <div className="notice error">{error}</div>}
 
@@ -35,14 +35,14 @@ export default async function LoginPage({
         <button type="submit">Giriş yap</button>
       </form>
 
-      <p className="muted" style={{ fontSize: '0.85rem' }}>
+      <p className="hint">
         Demo hesaplar ilk girişte oluşturulur: <code>admin@kutahya.local</code>,{' '}
         <code>planlama@kutahya.local</code>, <code>santral@kutahya.local</code> — şifre{' '}
         <code>CITYBUS_DEMO_PASSWORD</code> (varsayılan <code>demo1234</code>). Üretimde değiştirin.
       </p>
-      <p className="muted" style={{ fontSize: '0.85rem' }}>
+      <p className="hint">
         <Link href="/api/gtfs">GTFS arşivi</Link> giriş gerektirmez.
       </p>
-    </>
+    </div>
   )
 }

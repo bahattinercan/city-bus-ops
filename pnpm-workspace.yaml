@@ -4,3 +4,8 @@ packages:
 
 allowBuilds:
   esbuild: true
+  # native SQLite driver for the desktop build (docs/09-desktop-app.md)
+  better-sqlite3: true
+  # Electron and its packaging helpers download or build binaries at install time.
+  electron: true
+  electron-winstaller: true

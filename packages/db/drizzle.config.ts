@@ -1,16 +1,15 @@
 import { defineConfig } from 'drizzle-kit'
 
-const url = process.env.DATABASE_URL
-
-if (!url) {
-  throw new Error('DATABASE_URL is not set — copy .env.example to .env first')
-}
-
+/**
+ * SQLite is the single dialect of the desktop application (docs/09-desktop-app.md).
+ * The file path only matters for `generate`; `migrate` runs from the app against the
+ * database the shell hands it.
+ */
 export default defineConfig({
   schema: './src/schema.ts',
-  out: './drizzle',
-  dialect: 'postgresql',
-  dbCredentials: { url },
+  out: './drizzle-sqlite',
+  dialect: 'sqlite',
+  dbCredentials: { url: process.env.CITYBUS_DB_FILE ?? './data/citybus.db' },
   strict: true,
   verbose: true,
 })

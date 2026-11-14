@@ -1,4 +1,4 @@
-import { getSql } from '@/lib/db'
+import { pingDatabase } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -6,8 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const startedAt = Date.now()
   try {
-    const rows = await getSql()<{ ok: number }[]>`select 1 as ok`
-    const ready = rows[0]?.ok === 1
+    const ready = pingDatabase()
     return Response.json(
       {
         status: ready ? 'ok' : 'degraded',

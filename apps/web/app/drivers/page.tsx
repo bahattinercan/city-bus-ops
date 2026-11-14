@@ -69,11 +69,22 @@ export default async function DriversPage({
     load.set(entry.driverId, (load.get(entry.driverId) ?? 0) + 1)
   }
 
+  const stamp = new Date().toISOString().slice(11, 16)
+
   return (
     <>
       <h1>Şoförler</h1>
       <p className="lead">
-        {weekStart} haftası · {driverRows.length} şoför · {plan.snapshot.roster.length} görev ataması
+        <span className="badge">{weekStart} haftası</span>
+        <span className="badge">{driverRows.length} şoför</span>
+        <span className="badge">{plan.snapshot.roster.length} atama</span>
+        {pending.length > 0 && (
+          <span className="badge soft">
+            <span className="led warn" />
+            {pending.length} bekleyen takas
+          </span>
+        )}
+        <span className="muted">son güncelleme {stamp} UTC</span>
       </p>
 
       {params.error !== undefined && <div className="notice error">{params.error}</div>}
@@ -83,13 +94,13 @@ export default async function DriversPage({
       {params.notices !== undefined && <div className="notice error">{params.notices}</div>}
 
       <h3>Haftalık görevlendirme</h3>
-      <div className="row-actions" style={{ marginBottom: '1rem' }}>
+      <div className="toolbar">
         <form action={generateRosterAction}>
           <input type="hidden" name="week" value={weekStart} />
           <button type="submit">Şoför ata (run cutting)</button>
         </form>
       </div>
-      <p className="muted" style={{ fontSize: '0.85rem' }}>
+      <p className="hint">
         Görev penceresi, hattın o günkü ilk kalkışından son varışına kadar hesaplanır (+
         {LABOUR_LIMITS.preparationMinutes} dk hazırlık, +{LABOUR_LIMITS.cleaningMinutes} dk temizlik). Mola, pencere içindeki
         boşluktur; L1–L5 kuralları bu değerlerle denetlenir.
@@ -102,10 +113,10 @@ export default async function DriversPage({
               <th>Gün</th>
               <th>Şoför</th>
               <th>Araç</th>
-              <th>Başlangıç</th>
-              <th>Bitiş</th>
-              <th>Sürüş</th>
-              <th>Mola</th>
+              <th className="num">Başlangıç</th>
+              <th className="num">Bitiş</th>
+              <th className="num">Sürüş</th>
+              <th className="num">Mola</th>
             </tr>
           </thead>
           <tbody>
@@ -118,10 +129,10 @@ export default async function DriversPage({
                     <td>{day === undefined ? entry.dayIndex : dayLabel(day.dayType)}</td>
                     <td>{driverById.get(entry.driverId)?.fullName ?? entry.driverId}</td>
                     <td>{vehiclePlate.get(entry.vehicleId) ?? '—'}</td>
-                    <td>{formatMinutes(entry.startMinute)}</td>
-                    <td>{formatMinutes(entry.endMinute)}</td>
-                    <td className="muted">{Math.round(entry.drivingMinutes / 60)} s</td>
-                    <td className="muted">{entry.breakMinutes} dk</td>
+                    <td className="num">{formatMinutes(entry.startMinute)}</td>
+                    <td className="num">{formatMinutes(entry.endMinute)}</td>
+                    <td className="num muted">{Math.round(entry.drivingMinutes / 60)} s</td>
+                    <td className="num muted">{entry.breakMinutes} dk</td>
                   </tr>
                 )
               })}
@@ -200,7 +211,7 @@ export default async function DriversPage({
                   <span className="badge hard">{SEVERITY_LABEL[defect.severity] ?? defect.severity}</span>
                 </td>
                 <td>{defect.description}</td>
-                <td className="muted">{defect.reportedAt.toISOString().slice(0, 16).replace('T', ' ')}</td>
+                <td className="muted num">{defect.reportedAt.toISOString().slice(0, 16).replace('T', ' ')}</td>
                 <td>
                   <form action={closeDefectAction}>
                     <input type="hidden" name="defectId" value={defect.id} />
@@ -238,16 +249,16 @@ export default async function DriversPage({
             <th>Sicil</th>
             <th>Ad</th>
             <th>Ehliyet</th>
-            <th>Bu hafta görev</th>
+            <th className="num">Bu hafta görev</th>
           </tr>
         </thead>
         <tbody>
           {driverRows.map((driver) => (
             <tr key={driver.id}>
-              <td>{driver.employeeNo}</td>
+              <td className="muted">{driver.employeeNo}</td>
               <td>{driver.fullName}</td>
-              <td>{driver.licenceClass}</td>
-              <td>{load.get(driver.id) ?? 0}</td>
+              <td className="muted">{driver.licenceClass}</td>
+              <td className="num">{load.get(driver.id) ?? 0}</td>
             </tr>
           ))}
         </tbody>

@@ -57,7 +57,10 @@ export default async function DriverPage({
     <>
       <h1>Benim Haftam</h1>
       <p className="lead">
-        {driver?.fullName ?? 'Şoför'} · sicil {driver?.employeeNo ?? '—'} · {weekStart} haftası
+        <span>{driver?.fullName ?? 'Şoför'}</span>
+        <span className="badge">sicil {driver?.employeeNo ?? '—'}</span>
+        <span className="badge">{weekStart} haftası</span>
+        <span className="muted">son güncelleme {new Date().toISOString().slice(11, 16)} UTC</span>
       </p>
 
       {params.error !== undefined && <div className="notice error">{params.error}</div>}
@@ -83,9 +86,9 @@ export default async function DriverPage({
             <tr>
               <th>Gün</th>
               <th>Araç</th>
-              <th>Başlangıç</th>
-              <th>Bitiş</th>
-              <th>Mola</th>
+              <th className="num">Başlangıç</th>
+              <th className="num">Bitiş</th>
+              <th className="num">Mola</th>
             </tr>
           </thead>
           <tbody>
@@ -98,16 +101,16 @@ export default async function DriverPage({
                     <span className="muted">{day?.date.slice(5)}</span>
                   </td>
                   <td>{plateById.get(entry.vehicleId) ?? '—'}</td>
-                  <td>{formatMinutes(entry.startMinute)}</td>
-                  <td>{formatMinutes(entry.endMinute)}</td>
-                  <td className="muted">{entry.breakMinutes} dk</td>
+                  <td className="num">{formatMinutes(entry.startMinute)}</td>
+                  <td className="num">{formatMinutes(entry.endMinute)}</td>
+                  <td className="num muted">{entry.breakMinutes} dk</td>
                 </tr>
               )
             })}
           </tbody>
         </table>
       )}
-      <p className="muted" style={{ fontSize: '0.82rem' }}>
+      <p className="hint">
         Görev penceresi: en az {LABOUR_LIMITS.minRestBetweenDutiesMinutes / 60} saat iki görev arası dinlenme, en fazla{' '}
         {LABOUR_LIMITS.maxDrivingMinutes / 60} saat sürüş.
       </p>
@@ -137,7 +140,8 @@ export default async function DriverPage({
             <button type="submit">Santralden izin iste</button>
           </form>
           {myRequests.length > 0 && (
-            <p className="muted" style={{ fontSize: '0.85rem' }}>
+            <p className="hint">
+              <span className="led warn" />
               Bekleyen istek: {myRequests.length}
             </p>
           )}
@@ -180,8 +184,7 @@ export default async function DriverPage({
             <tr>
               <th>Araç</th>
               <th>Açıklama</th>
-              <th>Durum</th>
-            </tr>
+              <th>Durum</th>            </tr>
           </thead>
           <tbody>
             {myDefects.map((defect) => (

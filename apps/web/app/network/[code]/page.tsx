@@ -70,6 +70,9 @@ export default async function RoutePage({
       </h1>
       <p className="lead">
         <Link href="/network">← Ağ &amp; Tarife</Link>
+        <span className="badge">{routeStopRows.length} durak</span>
+        <span className="badge">{tripRows.length} sefer</span>
+        <span className="muted">son güncelleme {new Date().toISOString().slice(11, 16)} UTC</span>
       </p>
 
       {error !== undefined && <div className="notice error">{error}</div>}
@@ -79,7 +82,7 @@ export default async function RoutePage({
         <table>
           <thead>
             <tr>
-              <th>Sıra</th>
+              <th className="num">Sıra</th>
               <th>Kod</th>
               <th>Ad</th>
               <th />
@@ -88,7 +91,7 @@ export default async function RoutePage({
           <tbody>
             {routeStopRows.map((stop) => (
               <tr key={stop.sequence}>
-                <td>{stop.sequence}</td>
+                <td className="num">{stop.sequence}</td>
                 <td>
                   <strong>{stop.code}</strong>
                 </td>
@@ -152,7 +155,7 @@ export default async function RoutePage({
         </label>
         <button type="submit">Ekle</button>
       </form>
-      <p className="muted" style={{ fontSize: '0.82rem', marginTop: '-0.4rem' }}>
+      <p className="hint">
         Durak saatleri iki uç arasında eşit dağıtılır; tek tek düzeltme sonraki adımda gelecek.
       </p>
 
@@ -162,21 +165,25 @@ export default async function RoutePage({
           <table>
             <thead>
               <tr>
-                <th>Kalkış</th>
-                <th>Varış</th>
-                <th>Süre</th>
+                <th className="num">Kalkış</th>
+                <th className="num">Varış</th>
+                <th className="num">Süre</th>
                 <th />
               </tr>
             </thead>
             <tbody>
               {group.trips.map((trip) => (
                 <tr key={trip.id}>
-                  <td>{formatMinutes(trip.startMinute)}</td>
-                  <td>
+                  <td className="num">{formatMinutes(trip.startMinute)}</td>
+                  <td className="num">
                     {formatMinutesLong(trip.endMinute)}
-                    {trip.crossesMidnight && <span className="badge">gece</span>}
+                    {trip.crossesMidnight && (
+                      <span className="badge" style={{ marginLeft: 4 }}>
+                        gece
+                      </span>
+                    )}
                   </td>
-                  <td className="muted">{trip.endMinute - trip.startMinute} dk</td>
+                  <td className="num muted">{trip.endMinute - trip.startMinute} dk</td>
                   <td>
                     <form action={deleteTripAction}>
                       <input type="hidden" name="routeCode" value={route.code} />

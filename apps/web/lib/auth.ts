@@ -16,14 +16,32 @@ export type Session = {
 }
 
 const COOKIE_NAME = 'cb_session'
+const ROLE_COOKIE = 'cb_role'
 const SESSION_DAYS = 7
+const ROLES: readonly Role[] = ['admin', 'planner', 'dispatcher', 'driver']
+
+/**
+ * The desktop app runs on one workstation, so a password proves nothing: the operator is
+ * already at the machine. In local mode the session comes from the role the operator picked
+ * in the sidebar (default: admin) and the accounts exist only to keep foreign keys and the
+ * audit trail valid. The web/server variant keeps the password flow.
+ */
+export function localMode(): boolean {
+  return process.env.CITYBUS_LOCAL_MODE === '1'
+}
+
+export function isRole(value: unknown): value is Role {
+  return typeof value === 'string' && (ROLES as readonly string[]).includes(value)
+}
+
+let localAccountsReady = false
 
 function secret(): string {
   const value = process.env.SESSION_SECRET
   if (value !== undefined && value.length >= 16) return value
   // Development fallback: sessions are not portable across restarts, which is acceptable
   // locally and fails loudly in a deployment checklist (docs/06-deploy.md).
-  return `dev-only-${process.env.DATABASE_URL ?? 'no-db'}`
+  return `dev-only-${process.env.CITYBUS_DB_FILE ?? 'no-db'}`
 }
 
 export function hashPassword(password: string): string {
@@ -92,7 +110,42 @@ export async function clearSessionCookie(): Promise<void> {
 
 export async function getSession(): Promise<Session | null> {
   const store = await cookies()
-  return decode(store.get(COOKIE_NAME)?.value)
+  const fromCookie = decode(store.get(COOKIE_NAME)?.value)
+  if (fromCookie !== null) return fromCookie
+  if (!localMode()) return null
+  const chosen = store.get(ROLE_COOKIE)?.value
+  return localSession(isRole(chosen) ? chosen : 'admin')
+}
+
+/**
+ * Resolves the account row for a role. The rows are created once per process; their password
+ * hash is never used in local mode.
+ */
+async function localSession(role: Role): Promise<Session> {
+  if (!localAccountsReady) {
+    await ensureDemoUsers()
+    localAccountsReady = true
+  }
+
+  const db = getDb()
+  const [user] = await db.select().from(users).where(eq(users.role, role)).limit(1)
+  if (user === undefined) {
+    throw new Error(`local mode: no account for role ${role}`)
+  }
+
+  return {
+    userId: user.id,
+    role,
+    driverId: user.driverId,
+    organisationId: user.organisationId,
+    email: user.email,
+  }
+}
+
+/** Remembers the role the operator picked; local mode only. */
+export async function setLocalRole(role: Role): Promise<void> {
+  const store = await cookies()
+  store.set(ROLE_COOKIE, role, { httpOnly: false, sameSite: 'lax', path: '/', maxAge: SESSION_DAYS * 24 * 60 * 60 })
 }
 
 /** Page guard: redirects to the login screen unless the session holds one of the roles. */

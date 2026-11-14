@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import { asc, eq } from 'drizzle-orm'
+import { asc, eq, sql } from 'drizzle-orm'
 import { routes, stops } from '@citybus/db'
 import { requireSession } from '@/lib/auth'
-import { getDb, getOrganisation, getSql } from '@/lib/db'
+import { allRows, getDb, getOrganisation } from '@/lib/db'
 import { createRouteAction, createStopAction } from '../actions/network'
 
 export const dynamic = 'force-dynamic'
@@ -29,19 +29,26 @@ export default async function NetworkPage({
     .where(eq(stops.organisationId, organisation.id))
     .orderBy(asc(stops.code))
 
-  const stats = await getSql()<{ route_id: string; stop_count: string; trip_count: string }[]>`
+  const stats = allRows<{ route_id: string; stop_count: number; trip_count: number }>(sql`
     select r.id as route_id,
-           (select count(*) from route_stop rs where rs.route_id = r.id)::text as stop_count,
-           (select count(*) from trip t where t.route_id = r.id)::text as trip_count
+           (select count(*) from route_stop rs where rs.route_id = r.id) as stop_count,
+           (select count(*) from trip t where t.route_id = r.id) as trip_count
     from route r
     where r.organisation_id = ${organisation.id}
-  `
+  `)
   const statsByRoute = new Map(stats.map((row) => [row.route_id, row]))
+
+  const stamp = new Date().toISOString().slice(11, 16)
 
   return (
     <>
       <h1>Ağ &amp; Tarife</h1>
-      <p className="lead">Hatlar, duraklar ve seferler. Tarife GTFS olarak dışa aktarılabilir.</p>
+      <p className="lead">
+        <span>hatlar, duraklar ve seferler</span>
+        <span className="badge">{routeRows.length} hat</span>
+        <span className="badge">{stopRows.length} durak</span>
+        <span className="muted">GTFS dışa aktarımı hazır · son güncelleme {stamp} UTC</span>
+      </p>
 
       {error !== undefined && <div className="notice error">{error}</div>}
 
@@ -71,8 +78,8 @@ export default async function NetworkPage({
           <tr>
             <th>Kod</th>
             <th>Ad</th>
-            <th>Durak</th>
-            <th>Sefer</th>
+            <th className="num">Durak</th>
+            <th className="num">Sefer</th>
             <th>Gereksinim</th>
             <th />
           </tr>
@@ -86,12 +93,17 @@ export default async function NetworkPage({
                   <strong>{route.code}</strong>
                 </td>
                 <td>{route.name}</td>
-                <td>{stat?.stop_count ?? '0'}</td>
-                <td>{stat?.trip_count ?? '0'}</td>
-                <td className="muted">
+                <td className="num">{stat?.stop_count ?? '0'}</td>
+                <td className="num">{stat?.trip_count ?? '0'}</td>
+                <td>
                   {[route.requiredLowFloor ? 'engelli' : null, route.requiredAc ? 'klima' : null]
                     .filter(Boolean)
-                    .join(' · ') || '—'}
+                    .map((requirement) => (
+                      <span key={requirement} className="badge" style={{ marginRight: 4 }}>
+                        {requirement}
+                      </span>
+                    ))}
+                  {!route.requiredLowFloor && !route.requiredAc && <span className="muted">—</span>}
                 </td>
                 <td>
                   <Link href={`/network/${encodeURIComponent(route.code)}`}>Aç</Link>

@@ -3,7 +3,7 @@ import { and, desc, eq, sql } from 'drizzle-orm'
 import { RULE_CATALOG, type RuleCode } from '@citybus/domain'
 import { auditLog, defectReports, drivers, planVersions, ruleViolations } from '@citybus/db'
 import { requireSession } from '@/lib/auth'
-import { getDb, getOrganisation, getSql } from '@/lib/db'
+import { allRows, getDb, getOrganisation } from '@/lib/db'
 import { loadPlan, mondayOf } from '@/lib/plan'
 import { dayLabel } from '@/lib/time'
 
@@ -29,15 +29,15 @@ export default async function ReportsPage({
           .select({
             code: ruleViolations.code,
             severity: ruleViolations.severity,
-            count: sql<number>`count(*)::int`,
+            count: sql<number>`count(*)`,
           })
           .from(ruleViolations)
           .where(eq(ruleViolations.planVersionId, plan.version.id))
           .groupBy(ruleViolations.code, ruleViolations.severity)
           .orderBy(ruleViolations.code),
-    db.select({ count: sql<number>`count(*)::int` }).from(drivers).where(eq(drivers.organisationId, organisation.id)),
+    db.select({ count: sql<number>`count(*)` }).from(drivers).where(eq(drivers.organisationId, organisation.id)),
     db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(defectReports)
       .where(and(eq(defectReports.organisationId, organisation.id), eq(defectReports.status, 'open'))),
     db
@@ -63,66 +63,99 @@ export default async function ReportsPage({
   const standbyTotal = plan.snapshot.standbys.length
   const vehicleCount = plan.snapshot.vehicles.filter((vehicle) => vehicle.status === 'active').length
 
-  const kpi = await getSql()<{ km: string | null; trips: string }[]>`
-    select coalesce(sum(t.end_minute - t.start_minute), 0)::text as km,
-           count(*)::text as trips
+  const kpi = allRows<{ minutes: number; trips: number }>(sql`
+    select coalesce(sum(t.end_minute - t.start_minute), 0) as minutes,
+           count(*) as trips
     from trip t
     join route r on r.id = t.route_id
     where r.organisation_id = ${organisation.id}
-  `
-  const tripMinutes = Number(kpi[0]?.km ?? 0)
+  `)
+  const tripMinutes = Number(kpi[0]?.minutes ?? 0)
   const tripCount = Number(kpi[0]?.trips ?? 0)
+
+  const stamp = new Date().toISOString().slice(11, 16)
 
   return (
     <>
       <h1>Raporlar</h1>
-      <p className="lead">{weekStart} haftası · {organisation.name}</p>
+      <p className="lead">
+        <span>{organisation.name}</span>
+        <span className="badge">{weekStart} haftası</span>
+        <span className="muted">son güncelleme {stamp} UTC</span>
+      </p>
 
       <form className="inline" action="/reports">
         <label>
           Hafta
           <input type="date" name="week" defaultValue={weekStart} />
         </label>
-        <button type="submit" className="secondary">
-          Git
-        </button>
-        <Link href={`/api/plan/xlsx?week=${weekStart}`} style={{ alignSelf: 'center' }}>
-          Haftalık planı Excel olarak indir
+        <button type="submit">Git</button>
+        <Link href={`/api/plan/xlsx?week=${weekStart}`} className="button-link">
+          Excel indir
         </Link>
       </form>
 
       <div className="grid">
         <div className="card">
-          <div className="value">{dutyTotal}</div>
-          <div className="label">Haftalık görev (araç-gün)</div>
+          <div className="label">Haftalık görev</div>
+          <div className="value">
+            {dutyTotal}
+            <span className="unit">araç-gün</span>
+          </div>
         </div>
         <div className="card">
-          <div className="value">{standbyTotal}</div>
           <div className="label">Nöbet günü</div>
+          <div className="value">
+            {standbyTotal}
+            <span className="unit">gün</span>
+          </div>
         </div>
         <div className="card">
-          <div className="value">{plan.snapshot.roster.length}</div>
           <div className="label">Şoför görevi</div>
+          <div className="value">
+            {plan.snapshot.roster.length}
+            <span className="unit">atama</span>
+          </div>
         </div>
         <div className="card">
-          <div className="value">{driverCount[0]?.count ?? 0}</div>
           <div className="label">Şoför</div>
+          <div className="value">
+            {driverCount[0]?.count ?? 0}
+            <span className="unit">kişi</span>
+          </div>
         </div>
         <div className="card">
-          <div className="value">{vehicleCount}</div>
           <div className="label">Aktif araç</div>
+          <div className="value">
+            {vehicleCount}
+            <span className="unit">adet</span>
+          </div>
         </div>
-        <div className="card">
-          <div className="value">{openDefects[0]?.count ?? 0}</div>
+        <div className={openDefects[0] === undefined || openDefects[0].count > 0 ? 'card crit' : 'card ok'}>
           <div className="label">Açık arıza</div>
+          <div className="value">
+            {openDefects[0]?.count ?? 0}
+            <span className="unit">kayıt</span>
+          </div>
+          <div className="foot">
+            <span className={openDefects[0] === undefined || openDefects[0].count > 0 ? 'led crit' : 'led ok'} />
+            {openDefects[0] === undefined || openDefects[0].count > 0 ? 'CRIT' : 'OK'}
+          </div>
         </div>
         <div className="card">
-          <div className="value">{tripCount}</div>
           <div className="label">Tanımlı sefer</div>
+          <div className="value">
+            {tripCount}
+            <span className="unit">adet</span>
+          </div>
         </div>
         <div className="card">
-          <div className="value">{Math.round(tripMinutes / 60)}</div>
-          <div className="label">Tarife saati (toplam)</div>
+          <div className="label">Tarife saati</div>
+          <div className="value">
+            {Math.round(tripMinutes / 60)}
+            <span className="unit">saat</span>
+          </div>
+          <div className="foot">toplam süre</div>
         </div>
       </div>
 
@@ -132,8 +165,8 @@ export default async function ReportsPage({
           <tr>
             <th>Gün</th>
             <th>Tarih</th>
-            <th>Görev</th>
-            <th>Nöbet</th>
+            <th className="num">Görev</th>
+            <th className="num">Nöbet</th>
           </tr>
         </thead>
         <tbody>
@@ -141,8 +174,10 @@ export default async function ReportsPage({
             <tr key={day.dayIndex}>
               <td>{dayLabel(day.dayType)}</td>
               <td className="muted">{day.date}</td>
-              <td>{dutyPerDay.get(day.dayIndex) ?? 0}</td>
-              <td>{plan.snapshot.standbys.filter((standby) => standby.dayIndex === day.dayIndex).length}</td>
+              <td className="num">{dutyPerDay.get(day.dayIndex) ?? 0}</td>
+              <td className="num">
+                {plan.snapshot.standbys.filter((standby) => standby.dayIndex === day.dayIndex).length}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -157,7 +192,7 @@ export default async function ReportsPage({
             <tr>
               <th>Kural</th>
               <th>Şiddet</th>
-              <th>Adet</th>
+              <th className="num">Adet</th>
             </tr>
           </thead>
           <tbody>
@@ -172,7 +207,7 @@ export default async function ReportsPage({
                 <td>
                   <span className={`badge ${row.severity}`}>{row.severity === 'hard' ? 'sert' : 'yumuşak'}</span>
                 </td>
-                <td>{row.count}</td>
+                <td className="num">{row.count}</td>
               </tr>
             ))}
           </tbody>

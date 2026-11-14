@@ -4,7 +4,9 @@ import { requireSession } from '@/lib/auth'
 import { getDb, getOrganisation } from '@/lib/db'
 import { groupDayForWeek, loadPlan, mondayOf } from '@/lib/plan'
 import { dayLabel, formatMinutes } from '@/lib/time'
+import { isAssistantEnabled } from '@/lib/assistant'
 import { generatePlanAction, publishPlanAction, setCellAction } from '../actions/plan'
+import { EditPanel } from './edit-panel'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,12 +49,20 @@ export default async function PlanPage({
     dutyPerDay.set(assignment.dayIndex, (dutyPerDay.get(assignment.dayIndex) ?? 0) + 1)
   }
 
+  const stamp = new Date().toISOString().slice(11, 16)
+  const status = version === null ? 'plan yok' : version.status === 'published' ? 'yayınlandı' : 'taslak'
+
   return (
     <>
       <h1>Haftalık Plan</h1>
       <p className="lead">
-        {weekStart} haftası · rotasyon konumu {snapshot.weekOffset} (7 haftalık döngü) ·{' '}
-        {version === null ? 'plan yok' : version.status === 'published' ? 'yayınlandı' : 'taslak'}
+        <span className="badge">{weekStart} haftası</span>
+        <span className="badge">rotasyon {snapshot.weekOffset}/7</span>
+        <span className={version?.status === 'published' ? 'badge ok' : 'badge'}>
+          <span className={version?.status === 'published' ? 'led ok' : 'led warn'} />
+          {status}
+        </span>
+        <span className="muted">son güncelleme {stamp} UTC</span>
       </p>
 
       {params.error !== undefined && <div className="notice error">{params.error}</div>}
@@ -70,10 +80,12 @@ export default async function PlanPage({
         </button>
       </form>
 
-      <div className="row-actions" style={{ marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+      <div className="toolbar">
         <form action={generatePlanAction}>
           <input type="hidden" name="week" value={weekStart} />
-          <button type="submit">{version === null ? 'Haftayı üret' : 'Yeniden üret'}</button>
+          <button type="submit" className={version === null ? undefined : 'secondary'}>
+            {version === null ? 'Haftayı üret' : 'Yeniden üret'}
+          </button>
         </form>
         {version !== null && (
           <form action={publishPlanAction}>
@@ -83,7 +95,7 @@ export default async function PlanPage({
             </button>
           </form>
         )}
-        <Link href={`/api/plan/xlsx?week=${weekStart}`} className="muted" style={{ alignSelf: 'center' }}>
+        <Link href={`/api/plan/xlsx?week=${weekStart}`} className="button-link">
           Excel indir
         </Link>
       </div>
@@ -93,7 +105,7 @@ export default async function PlanPage({
         <thead>
           <tr>
             <th>Grup</th>
-            <th>Araç sayısı</th>
+            <th className="num">Araç sayısı</th>
             <th>Gün</th>
           </tr>
         </thead>
@@ -101,7 +113,7 @@ export default async function PlanPage({
           {snapshot.groups.map((group) => (
             <tr key={group.id}>
               <td>{group.name}</td>
-              <td>{group.vehicleCount}</td>
+              <td className="num">{group.vehicleCount}</td>
               <td>{dayLabel(dayTypeOf(groupDayForWeek(group.referenceDayIndex, snapshot.weekOffset)))}</td>
             </tr>
           ))}
@@ -113,8 +125,8 @@ export default async function PlanPage({
       ) : (
         <>
           <h3>Plan tablosu</h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table>
+          <div className="scroll-x">
+            <table className="matrix">
               <thead>
                 <tr>
                   <th>Plaka</th>
@@ -122,7 +134,7 @@ export default async function PlanPage({
                     <th key={day.dayIndex}>
                       {dayLabel(day.dayType).slice(0, 3)}
                       <br />
-                      <span className="muted" style={{ fontWeight: 400 }}>
+                      <span className="muted">
                         {day.date.slice(5)}
                       </span>
                     </th>
@@ -153,7 +165,11 @@ export default async function PlanPage({
                           }
                         >
                           {label}
-                          {cell?.locked === true && <span title="elle kilitli">🔒</span>}
+                          {cell?.locked === true && (
+                            <span className="badge soft" title="elle kilitli" style={{ marginLeft: 4 }}>
+                              kilit
+                            </span>
+                          )}
                         </td>
                       )
                     })}
@@ -162,7 +178,7 @@ export default async function PlanPage({
                 <tr>
                   <td className="muted">/gün</td>
                   {snapshot.days.map((day) => (
-                    <td key={day.dayIndex} className="muted">
+                    <td key={day.dayIndex} className="num muted">
                       {dutyPerDay.get(day.dayIndex) ?? 0}
                     </td>
                   ))}
@@ -193,7 +209,7 @@ export default async function PlanPage({
                     <td>
                       <strong>{violation.code}</strong>
                       <br />
-                      <span className="muted" style={{ fontSize: '0.78rem' }}>
+                      <span className="muted">
                         {violation.code in RULE_CATALOG
                           ? RULE_CATALOG[violation.code as RuleCode].title
                           : 'Şoför çalışma kuralı'}
@@ -208,6 +224,9 @@ export default async function PlanPage({
               </tbody>
             </table>
           )}
+
+          <h3>Toplu düzenleme · metin veya AI</h3>
+          <EditPanel week={weekStart} assistantEnabled={isAssistantEnabled()} />
 
           <h3>Hücre düzenle (elle, kilitlenir)</h3>
           <form className="inline" action={setCellAction}>
@@ -241,7 +260,7 @@ export default async function PlanPage({
             </label>
             <button type="submit">Kaydet</button>
           </form>
-          <p className="muted" style={{ fontSize: '0.82rem' }}>
+          <p className="hint">
             Hücre kodları tablodaki gibi yazılır: hat kodu (<code>9A</code>), ek görev (
             <code>-20</code>), nöbet (<code>x</code>), ilk sefer saati (<code>12.00</code>), yatan araç (
             <code>YAT</code> veya boş).

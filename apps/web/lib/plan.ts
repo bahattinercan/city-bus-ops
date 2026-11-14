@@ -2,6 +2,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 import {
   blocksPublishing,
   dayIndex,
+  parseIsoDate,
   rotationDayIndex,
   DAY_TYPES,
   type AssignmentRef,
@@ -42,10 +43,19 @@ export type LoadedPlan = {
 }
 
 export function mondayOf(isoDate: string): string {
-  const date = new Date(`${isoDate}T00:00:00Z`)
+  const date = parseIsoDate(isoDate)
+  if (date === undefined) {
+    // `?week=abc` is a link typo, not a reason to crash the screen: use the current week.
+    return mondayOf(new Date().toISOString().slice(0, 10))
+  }
   const weekday = date.getUTCDay() === 0 ? 7 : date.getUTCDay()
   date.setUTCDate(date.getUTCDate() - (weekday - 1))
   return date.toISOString().slice(0, 10)
+}
+
+/** The route a hand-written standby row should point at (R9 needs one). */
+export function standbyRouteIdOf(snapshot: PlanSnapshot): string | null {
+  return snapshot.standbys.find((standby) => standby.routeId !== null)?.routeId ?? snapshot.routes[0]?.id ?? null
 }
 
 export function weeksBetween(anchorMonday: string, targetMonday: string): number {

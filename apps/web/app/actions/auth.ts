@@ -1,7 +1,8 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { clearSessionCookie, ensureDemoUsers, login } from '@/lib/auth'
+import { clearSessionCookie, ensureDemoUsers, isRole, login, setLocalRole } from '@/lib/auth'
 
 export async function loginAction(formData: FormData): Promise<void> {
   const email = String(formData.get('email') ?? '')
@@ -19,6 +20,17 @@ export async function loginAction(formData: FormData): Promise<void> {
   }
 
   redirect(result.role === 'driver' ? '/driver' : '/')
+}
+
+/** Local mode: switches the working role without a password. */
+export async function setRoleAction(formData: FormData): Promise<void> {
+  const role = formData.get('role')
+  if (!isRole(role)) {
+    redirect('/')
+  }
+  await setLocalRole(role)
+  revalidatePath('/', 'layout')
+  redirect(role === 'driver' ? '/driver' : '/')
 }
 
 export async function logoutAction(): Promise<void> {
