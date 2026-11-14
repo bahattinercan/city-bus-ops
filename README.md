@@ -1,5 +1,7 @@
 # City Bus Ops
 
+**English** · [Türkçe](README.tr.md)
+
 **Vehicle blocking, driver duties and the 7-week rotation law for a municipal city-bus fleet — as a Windows desktop application that runs entirely offline.**
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -8,7 +10,7 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4.svg)](#the-desktop-app)
 [![Node](https://img.shields.io/badge/node-22%20LTS-5fa04e.svg)](.nvmrc)
 
-![Weekly plan screen](docs/screenshots/02-weekly-plan.png)
+![Overview screen](docs/screenshots/05-dashboard-en.png)
 
 A depot planner publishes the next week's duty plan twice a week: which bus covers which route,
 which driver takes which run, in which order — under a rotation law that must not be violated
@@ -36,7 +38,7 @@ uses, and exports the schedule as **GTFS** so the data can leave the building wh
 - [Documentation](#documentation)
 - [Roadmap](#roadmap)
 - [License](#license)
-- [Türkçe](#city-bus-ops-türkçe)
+- [Türkçe README](README.tr.md)
 
 ---
 
@@ -53,6 +55,7 @@ uses, and exports the schedule as **GTFS** so the data can leave the building wh
 | **Driver screen** | PWA-friendly "my week", swap request, defect report — no planner access |
 | **Outputs** | The operator's printed weekly sheet (template v2.0 cell map, Excel), GTFS Schedule zip, TODS 2.1 export |
 | **Assistant** | One Turkish sentence → a bounded, validated list of cell edits, always confirmed by a human |
+| **Language** | Turkish and English interface, switched in the sidebar and remembered in a cookie (Turkish by default) |
 | **Deployment** | A Windows installer with embedded SQLite: no server, no database service, no browser |
 
 Everything the standards do **not** model — standby days, the 7-week rotation, extra-duty codes,
@@ -158,6 +161,11 @@ Open <http://localhost:3000>. The first request creates the SQLite file, applies
 migration and seeds the reference data (45 plates, 12 routes, 4 duty groups, 20 demo drivers and
 a demo timetable), so the app is usable immediately.
 
+**Interface language.** The UI ships in Turkish (operator default) and English; the sidebar
+switcher sets a `cb_lang` cookie, so every screen, rule title, violation sentence and error
+message renders in the chosen language. Dictionary keys are type-checked against each other, so
+a missing English string fails the build instead of appearing as a raw key.
+
 **Desktop (local) mode — no login.** The app resolves the working role from the sidebar
 (yönetici / planlama / santral / şoför, default admin); a password would prove nothing to a person
 already sitting at the depot PC. The password login remains for the web/server variant, which is
@@ -234,6 +242,7 @@ tests/              cross-package golden files and e2e fixtures
 | [`docs/legacy-excel-io.md`](docs/legacy-excel-io.md) | Cell map of the printed weekly sheet |
 | [`AGENTS.md`](AGENTS.md) | Working rules for this repository |
 | [`TESTING.md`](TESTING.md) | Demo data, accounts, walkthrough, smoke script |
+| [`README.tr.md`](README.tr.md) | This document in Turkish |
 
 The `legacy-*.md` documents are verbatim imports from the retired system and stay in Turkish:
 they are the only surviving record of rules that exist nowhere else. They are frozen — new ideas
@@ -253,178 +262,3 @@ go into a new document instead.
 The sponsor data (route names, plates, driver names in the seed) is fictional demo data.
 
 ---
-
-# City Bus Ops (Türkçe)
-
-**Belediye şehir içi otobüs filosu için araç bloklama, şoför görevleri ve 7 haftalık rotasyon kuralı — tamamen çevrimdışı çalışan bir Windows masaüstü uygulaması.**
-
-![Haftalık plan ekranı](docs/screenshots/02-weekly-plan.png)
-
-Planlama, haftada iki kez haftalık görev planını yayınlar: hangi araç hangi hatta, hangi şoför
-hangi seferi, hangi sırayla — ve bu sıra, ihlal edilmemesi gereken bir rotasyon kanununa
-(erken/geç vardiyaların adil dağıtımı), yasal dinlenme sınırlarına ve operasyonun fiilen uyduğu
-toplu iş sözleşmesi kurallarına tabidir.
-
-Bu depo o aracın kendisi: tek kullanıcılı Excel akışının yerine kuralları bilen, denetim izi
-tutan, şoför odasının hâlâ kullandığı basılı tabloyu aynı hücre düzeninde üreten ve gerektiğinde
-tarifeyi **GTFS** olarak dışarı verebilen bir sistem.
-
-## Neler yapar
-
-| Alan | Yetenek |
-| --- | --- |
-| **Ağ ve tarife** | Hatlar, duraklar, gün tipine göre tarife (hafta içi / cumartesi / pazar), sefer bazlı kalkışlar |
-| **Araç bloklama** | Hangi plaka ne zaman yolda: filoyu görevlere böl, günlük araç sayısını doğru tut |
-| **Haftalık plan** | Deterministik hafta üretimi, kilitli hücre düzenleme, denetim kaydıyla yayınlama |
-| **Rotasyon kanunu** | 7 haftalık görev grubu döngüsü resmî kural setiyle — ihlal yayını bloke eder, uyarı vermez |
-| **Kural motoru** | 13 sert (R1–R18) + 5 yumuşak kural, ardından şoför çalışma kuralları L1–L5 (dinlenme, haftalık tavan, gece kotası) |
-| **Şoförler** | Tarifeden run cutting, roster, izin, takas talebi, arıza bildirimi |
-| **Şoför ekranı** | "Haftam", takas isteği, arıza bildirimi — planlama yetkisi yok |
-| **Çıktılar** | Operatörün basılı haftalık tablosu (şablon v2.0 hücre haritası, Excel), GTFS Schedule zip, TODS 2.1 |
-| **Asistan** | Tek Türkçe cümle → sınırlı, doğrulanmış hücre düzenleme listesi; her zaman insan onayı |
-| **Kurulum** | Gömülü SQLite ile Windows kurulumu: sunucu yok, veritabanı servisi yok, tarayıcı yok |
-
-Standartların modellemediği her şey — nöbet günleri, 7 haftalık rotasyon, ek görev kodları,
-serbest metinli hücre notları — belgelenmiş `x_` ek tablolarında durur ve ham metnini korur.
-
-## Ekranlar
-
-| Ekran | Kim | Ne |
-| --- | --- | --- |
-| `/` | tüm personel | Özet: filo, sefer, rotasyon kadranı, sonraki adım, sistem kartı |
-| `/network` | planlama | Hatlar, duraklar, gün tipine göre tarife |
-| `/plan` | planlama, santral | Haftayı üret, kural paneli, kilitli hücre düzenleme, toplu/AI düzenleme, yayınla |
-| `/drivers` | planlama, santral | Run cutting, roster, izin, takas, arıza |
-| `/driver` | şoför | Haftam, takas isteği, arıza bildirimi |
-| `/reports` | tüm personel | KPI, ihlaller, denetim izi, Excel indirme |
-| `/help` | tüm personel | Adım adım kılavuz, hücre kodu sözlüğü, canlı kural sayıları, sorun giderme |
-| `/api/gtfs` | herkese açık | GTFS Schedule zip |
-| `/api/health` | operasyon | Sağlık kontrolü + gerçek veritabanı testi |
-
-![Kılavuz ekranı](docs/screenshots/04-guide.png)
-
-## Rotasyon ve kurallar
-
-Plan serbest değildir: araç görev grupları yedi hafta boyunca sabit bir sırayla döner ve her
-grubun vardiya deseni (erken / gündüz / geç / izin) döngüdeki konumundan türetilir. Uygulama
-[`docs/legacy-data-model-and-scheduler.md`](docs/legacy-data-model-and-scheduler.md) içindeki
-F1–F5 kural setini izler; erken vardiyaların döngü boyunca adil dağıtımı dahil.
-
-`generateWeek()` ya kurala uyan bir hafta üretir ya da hangi kuralın nerede ihlal edildiğini
-söyler. "Yine de yayınla" düğmesi yoktur.
-
-```
-R1–R18   operasyonel kurallar (13 sert / 5 yumuşak) → /plan üzerinde bloke eder veya uyarır
-L1–L5    şoför çalışma kuralları (dinlenme, tavan, gece) → şoför × hafta bazında denetlenir
-```
-
-## Planlama asistanı
-
-Planlama metin biçimli bir problemdir ("Salı günü 42'yi 12 hattına al, 07'yi YAT yap"), uygulama
-tam olarak bunu kabul eder — üç sert sınırla:
-
-1. **Sınırlı girdi.** Ya deterministik satırlar (`42 Salı H12`) ya tek Türkçe cümle. Modelden en
-   fazla 20 hücre ve kapalı bir dilbilgisi istenir; fazlası reddedilir.
-2. **Asla güvenilmez.** Yanıt savunmalı ayrıştırılır ve elle düzenlemeyle aynı kural motorundan
-   geçer: bilinmeyen plaka, bilinmeyen hat kodu, tahmin edilmiş metin, çift hücre ve kural ihlali
-   istisna değil, sorun listesi olur.
-3. **Asla yazmaz.** Her öneri önce/sonra farkı olarak gösterilir ve ancak insan onayından sonra,
-   elle düzenlemenin kullandığı kilitli hücre yazıcısıyla uygulanır.
-
-Varsayılan olarak **kapalıdır** (`ASSISTANT_ENABLED=false`): anahtar yoksa panel yalnızca
-deterministik satırları kabul eder ve hiçbir istek makineden çıkmaz. Herhangi bir
-OpenAI-uyumlu uç nokta ile çalışır (ücretsiz Groq anahtarı yeter); `.env.example` üç seçeneği
-kotaları ve veri saklama koşullarıyla birlikte yazar — operatör verisi için bu fark önemlidir (KVKK).
-
-## Mimari
-
-Uçtan uca TypeScript, pnpm workspace. `domain` saftır: React yok, Drizzle yok, ağ yok.
-
-| Paket | Sahibi olduğu | Yapmaması gereken |
-| --- | --- | --- |
-| `apps/web` | Next.js App Router arayüzü, server action'lar, API rotaları | iş kuralı içermek |
-| `apps/desktop` | Electron kabuğu: yaşam döngüsü, port, sağlık kapısı, yedekler, menü, paketleme | plan kuralı bilmek |
-| `packages/domain` | Kural motoru, rotasyon kanunu, plan üretimi, hücre dilbilgisi, asistan sözleşmesi | React/Next/Drizzle/ağ |
-| `packages/db` | Drizzle şeması (SQLite), migration'lar, seed, ham SQL | kural mantığı |
-| `packages/gtfs` | GTFS + TODS okuma/yazma ve doğrulama | veritabanına dokunmak |
-| `packages/xlsx` | Basılı tablo düzeni ve dışa aktarma | veritabanını bilmek |
-
-Teknoloji: Node 22 · pnpm 12 · Next.js 16 + React 19 · SQLite (`better-sqlite3`) + Drizzle ORM ·
-Electron 38 · ExcelJS 4 · GTFS/TODS 2.1 · Vitest 5 (**146 test**).
-
-## Hızlı başlangıç
-
-```bash
-pnpm install
-cp .env.example .env       # CITYBUS_DB_FILE, SESSION_SECRET — gerisi isteğe bağlı
-pnpm --filter @citybus/web dev
-```
-
-<http://localhost:3000> adresini açın. İlk istek SQLite dosyasını oluşturur, temel migration'ı
-uygular ve referans veriyi yükler (45 plaka, 12 hat, 4 görev grubu, 20 demo şoför ve demo tarife).
-
-**Masaüstü (yerel) mod — giriş yok.** Çalışma rolü kenar çubuğundan seçilir (yönetici / planlama /
-santral / şoför, varsayılan yönetici); depo bilgisayarının başında oturan birine şifre bir şey
-kanıtlamaz. Şifreli giriş, `CITYBUS_LOCAL_MODE` tanımsızken çalışan web/sunucu varyantı için durur.
-
-### Masaüstü uygulaması
-
-```bash
-pnpm desktop:package     # Next standalone → sahnelenen sunucu → Electron kabuğu → kurulumlar
-```
-
-Çıktı `apps/desktop/release/` altında: `City Bus Ops-<sürüm>-x64.exe` (NSIS kurulum, ~103 MB) ve
-`City Bus Ops-<sürüm>-portable.exe` (~93 MB). Veri, yedek ve günlükler kullanıcının yanında kalır:
-`%APPDATA%\CityBusOps\` — `citybus.db`, `backups/` (açılış ve kapanışta alınan 14 dönen kopya),
-`logs/`. `pnpm desktop:self-test` tüm yığını başsız ayağa kaldırıp JSON rapor basar; CI kapısı budur.
-
-> **Yayın kapısı:** kurulum imzasızdır. Windows Smart App Control internetten indirilen imzasız
-> exe'yi engeller; operatöre dağıtım için kod imzalama sertifikası gerekir
-> ([`docs/09-desktop-app.md`](docs/09-desktop-app.md)).
-
-## Doğrulama
-
-```bash
-pnpm verify                                  # lint + typecheck + test + build — kapı
-BASE=http://127.0.0.1:3000 scripts/smoke.sh  # çalışan uygulamaya karşı uçtan uca
-```
-
-`pnpm verify` yeşil olmadan hiçbir iş "bitti" sayılmaz. Smoke betiği gerçek akışları (plan üretimi,
-run cutting, hücre düzenleme, Excel, GTFS, rol korumaları) taze bir veritabanı dosyasına karşı
-denetler; paketlenmiş kaynaklara karşı da koşar, yani sevk edilen baytlar test edilir.
-Demo veri, hesaplar ve elle gezinme: [`TESTING.md`](TESTING.md).
-
-## Veri, gizlilik, çevrimdışı
-
-- Tek iş istasyonu, tek SQLite dosyası; yönetilecek sunucu yok, veri makineden çıkmaz.
-- Asistan açıkça etkinleştirilmedikçe **ve** planlama onu kullanmadıkça hiçbir yere istek gitmez.
-- Veritabanı, yapılandırma ve yedekler `%APPDATA%\CityBusOps\` altında, depo dışında durur.
-  `.env`, `.secrets/` ve `*.db` git tarafından yok sayılır; hiçbir kimlik bilgisi commit edilmez.
-- Operasyonel gerçek kendi tablolarımızdadır. GTFS ve TODS **üretilen** çıktılardır; içe aktarma
-  bir göç aracıdır, düzenleme yolu asla değildir.
-
-## Depo düzeni
-
-```
-apps/web            Next.js uygulaması: ekranlar, server action'lar, API, oturum
-apps/desktop        Electron kabuğu: yaşam döngüsü, yedekler, paketleme, self-test
-packages/domain     kurallar, rotasyon, plan üretimi, hücre dilbilgisi, asistan sözleşmesi
-packages/db         Drizzle şeması (SQLite), migration'lar, seed
-packages/gtfs       GTFS + TODS okuma/yazma ve doğrulama
-packages/xlsx       basılı haftalık tablo, şablon v2.0 hücre haritası
-docs/               tasarım dokümanları; legacy-*.md eski sistemin dondurulmuş kaydı
-tests/              paketler arası golden dosyalar ve e2e fixture'ları
-```
-
-## Yol haritası
-
-- Kurulum için **kod imzalama** (bugün dağıtımı bu engelliyor).
-- Otomatik güncelleme akışı ve markalı simge.
-- İlk açılış sihirbazı: kurum adı, rotasyon çapa haftası, filo içe aktarma (CSV/XLSX).
-- Canlı veri: depo AVL beslemesi geldiğinde GTFS-RT üretici.
-- İsteğe bağlı çok kullanıcılı sunucu modu (şifreli varyant kod tabanında duruyor).
-
-## Lisans
-
-[Apache License 2.0](LICENSE) — kullanın, değiştirin, dağıtın; bildirimleri ve patent iznini koruyun.
-Seed'deki hat adları, plakalar ve şoför isimleri kurgusal demo verisidir.
