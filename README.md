@@ -23,8 +23,31 @@ uses, and exports the schedule as **GTFS** so the data can leave the building wh
 
 ---
 
+## Download
+
+Windows x64 build of 0.1.0 — the whole app on one workstation: Electron shell, Next.js standalone
+server and an embedded SQLite file. No server, no database service, no browser.
+
+| File | What it is | Size | SHA-256 (first 16) |
+| --- | --- | --- | --- |
+| [CityBusOps-0.1.0-x64.exe](https://github.com/bahattinercan/city-bus-ops/releases/download/v0.1.0/CityBusOps-0.1.0-x64.exe) | NSIS installer, per-user install | ~103 MB | `f66fb16ae5de84e2` |
+| [CityBusOps-0.1.0-portable.exe](https://github.com/bahattinercan/city-bus-ops/releases/download/v0.1.0/CityBusOps-0.1.0-portable.exe) | single-file portable build, no install | ~93 MB | `f8b1bacc321758c1` |
+
+Full checksums: [SHA256SUMS.txt](https://github.com/bahattinercan/city-bus-ops/releases/download/v0.1.0/SHA256SUMS.txt).
+Verify a download with
+`Get-FileHash ".\CityBusOps-0.1.0-x64.exe" -Algorithm SHA256`.
+All builds: [releases](https://github.com/bahattinercan/city-bus-ops/releases).
+
+> **These binaries are unsigned.** Windows Smart App Control and SmartScreen block an unsigned
+> executable downloaded from the internet — unblock the file (`Properties → Unblock`) on the
+> workstation, and get a code-signing certificate before it reaches an operator. Details:
+> [`docs/09-desktop-app.md`](docs/09-desktop-app.md).
+
+---
+
 ## Table of contents
 
+- [Download](#download)
 - [What it does](#what-it-does)
 - [Screens](#screens)
 - [The rotation law](#the-rotation-law)
@@ -183,6 +206,9 @@ Output in `apps/desktop/release/`:
 | --- | --- |
 | `City Bus Ops-<version>-x64.exe` (NSIS installer) | ~103 MB |
 | `City Bus Ops-<version>-portable.exe` | ~93 MB |
+
+Published release assets carry the same content under hyphenated names
+(`CityBusOps-<version>-x64.exe`, `CityBusOps-<version>-portable.exe`) — see [Download](#download).
 
 Data, backups and logs stay next to the user: `%APPDATA%\CityBusOps\` —
 `citybus.db`, `backups/` (14 rotating copies, taken on start and quit), `logs/`.

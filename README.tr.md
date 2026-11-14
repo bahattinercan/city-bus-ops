@@ -15,6 +15,26 @@ Bu depo o aracın kendisi: tek kullanıcılı Excel akışının yerine kurallar
 tutan, şoför odasının hâlâ kullandığı basılı tabloyu aynı hücre düzeninde üreten ve gerektiğinde
 tarifeyi **GTFS** olarak dışarı verebilen bir sistem.
 
+## İndir
+
+0.1.0 sürümünün Windows x64 derlemesi — uygulamanın tamamı tek iş istasyonunda: Electron kabuğu,
+Next.js standalone sunucu ve gömülü SQLite dosyası. Sunucu yok, veritabanı servisi yok, tarayıcı yok.
+
+| Dosya | Ne olduğu | Boyut | SHA-256 (ilk 16) |
+| --- | --- | --- | --- |
+| [CityBusOps-0.1.0-x64.exe](https://github.com/bahattinercan/city-bus-ops/releases/download/v0.1.0/CityBusOps-0.1.0-x64.exe) | NSIS kurulum, kullanıcı bazlı | ~103 MB | `f66fb16ae5de84e2` |
+| [CityBusOps-0.1.0-portable.exe](https://github.com/bahattinercan/city-bus-ops/releases/download/v0.1.0/CityBusOps-0.1.0-portable.exe) | tek dosya, kurulum gerektirmez | ~93 MB | `f8b1bacc321758c1` |
+
+Tam checksum listesi: [SHA256SUMS.txt](https://github.com/bahattinercan/city-bus-ops/releases/download/v0.1.0/SHA256SUMS.txt).
+İndirdiğin dosyayı doğrulamak için:
+`Get-FileHash ".\CityBusOps-0.1.0-x64.exe" -Algorithm SHA256`.
+Tüm derlemeler: [releases](https://github.com/bahattinercan/city-bus-ops/releases).
+
+> **Bu dosyalar imzasızdır.** Windows Smart App Control ve SmartScreen internetten indirilen imzasız
+> bir exe'yi engeller — iş istasyonunda dosyayı engelden çıkarın (`Özellikler → Engellemeyi kaldır`),
+> operatöre gitmeden önce kod imzalama sertifikası alın. Ayrıntı:
+> [`docs/09-desktop-app.md`](docs/09-desktop-app.md).
+
 ## Neler yapar
 
 | Alan | Yetenek |
@@ -126,7 +146,9 @@ pnpm desktop:package     # Next standalone → sahnelenen sunucu → Electron ka
 ```
 
 Çıktı `apps/desktop/release/` altında: `City Bus Ops-<sürüm>-x64.exe` (NSIS kurulum, ~103 MB) ve
-`City Bus Ops-<sürüm>-portable.exe` (~93 MB). Veri, yedek ve günlükler kullanıcının yanında kalır:
+`City Bus Ops-<sürüm>-portable.exe` (~93 MB). Yayınlanan release dosyaları aynı içeriği tiresi adla
+(`CityBusOps-<sürüm>-x64.exe`, `CityBusOps-<sürüm>-portable.exe`) taşır — bkz. [İndir](#i̇ndir) / [releases](https://github.com/bahattinercan/city-bus-ops/releases).
+Veri, yedek ve günlükler kullanıcının yanında kalır:
 `%APPDATA%\CityBusOps\` — `citybus.db`, `backups/` (açılış ve kapanışta alınan 14 dönen kopya),
 `logs/`. `pnpm desktop:self-test` tüm yığını başsız ayağa kaldırıp JSON rapor basar; CI kapısı budur.
 
