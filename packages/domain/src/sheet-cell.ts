@@ -26,6 +26,12 @@ export type SheetCell =
 const TIME_PATTERN = /^(\d{1,2})[.:](\d{2})$/
 const EXTRA_DUTY_PATTERN = /^-\s*(\d{1,3}[A-Za-z]{0,2})$/
 const STANDBY_MARKERS = new Set(['x', 'X', '×', '*'])
+/**
+ * `YAT` is the operator's explicit "idle vehicle" marker (legacy TD-04: an explicit idle
+ * row, distinct from an empty cell which means "no record"). It carries no route data, so
+ * it parses to an empty cell and `raw` keeps the word for the printed sheet.
+ */
+const IDLE_MARKER = 'YAT'
 
 /** Parses plan cell content; never throws, unknown content becomes `text`. */
 export function parseSheetCell(input: string): SheetCell {
@@ -36,6 +42,10 @@ export function parseSheetCell(input: string): SheetCell {
 
   if (STANDBY_MARKERS.has(raw)) {
     return { kind: 'standby', raw }
+  }
+
+  if (normalizeUppercase(raw) === IDLE_MARKER) {
+    return { kind: 'empty', raw }
   }
 
   const extra = EXTRA_DUTY_PATTERN.exec(raw)
@@ -62,4 +72,8 @@ export function parseSheetCell(input: string): SheetCell {
 /** True when the cell assigns work (duty or extra duty) — used by plan validation. */
 export function assignsWork(cell: SheetCell): boolean {
   return cell.kind === 'duty' || cell.kind === 'extraDuty'
+}
+
+function normalizeUppercase(value: string): string {
+  return value.toLocaleUpperCase('tr-TR')
 }

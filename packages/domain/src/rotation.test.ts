@@ -3,6 +3,7 @@ import {
   ROTATION_CYCLE_WEEKS,
   cyclePosition,
   isoDate,
+  parseIsoDate,
   rotationDayIndex,
   weekOffset,
   weekStartOf,
@@ -60,5 +61,20 @@ describe('week arithmetic (F1)', () => {
   it('refuses dates that are not Mondays', () => {
     const anchor = weekStartOf(new Date('2026-09-21T00:00:00Z'))
     expect(() => weekOffset(anchor, new Date('2026-09-23T00:00:00Z'))).toThrow(/Monday/)
+  })
+})
+
+describe('parseIsoDate', () => {
+  it('accepts a real calendar date', () => {
+    expect(parseIsoDate('2026-11-09')?.toISOString()).toBe('2026-11-09T00:00:00.000Z')
+  })
+
+  it('rejects anything a query string can contain', () => {
+    expect(parseIsoDate('abc')).toBeUndefined()
+    expect(parseIsoDate('')).toBeUndefined()
+    expect(parseIsoDate('2026-11-9')).toBeUndefined()
+    expect(parseIsoDate('09.11.2026')).toBeUndefined()
+    expect(parseIsoDate('2026-02-31')).toBeUndefined()
+    expect(parseIsoDate('2026-13-01')).toBeUndefined()
   })
 })

@@ -38,3 +38,14 @@ describe('parseSheetCell', () => {
     expect(parseSheetCell('   ').kind).toBe('empty')
   })
 })
+
+describe('parseSheetCell — idle marker', () => {
+  it('reads the operator idle marker as an empty cell and keeps the raw text', () => {
+    expect(parseSheetCell('YAT')).toEqual({ kind: 'empty', raw: 'YAT' })
+    expect(parseSheetCell('yat')).toEqual({ kind: 'empty', raw: 'yat' })
+  })
+
+  it('still treats unknown words as raw text, never as a guess', () => {
+    expect(parseSheetCell('otogar').kind).toBe('text')
+  })
+})

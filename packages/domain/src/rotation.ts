@@ -51,6 +51,24 @@ export function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10)
 }
 
+/**
+ * Parses a `YYYY-MM-DD` calendar date at UTC midnight.
+ *
+ * Returns `undefined` for anything that is not a real date, because the value usually comes
+ * from a query string (`?week=…`) and a malformed one must not throw inside a page render.
+ */
+export function parseIsoDate(value: string): Date | undefined {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return undefined
+  }
+  const date = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) {
+    return undefined
+  }
+  // Reject roll-overs such as 2026-02-31, which Date would silently turn into March.
+  return isoDate(date) === value ? date : undefined
+}
+
 export function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
 }

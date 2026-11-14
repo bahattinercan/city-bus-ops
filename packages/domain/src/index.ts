@@ -2,6 +2,26 @@ export { PlateNumber } from './plate-number'
 export { RouteCode } from './route-code'
 export { parseSheetCell, assignsWork, type SheetCell } from './sheet-cell'
 export {
+  MAX_EDITS_PER_REQUEST,
+  parseEditDay,
+  parseEditText,
+  resolveEdits,
+  type EditLineError,
+  type EditRejection,
+  type EditResolution,
+  type EditTargets,
+  type PlanEdit,
+  type ResolvedEdit,
+} from './plan-edit'
+export {
+  buildAssistantPrompt,
+  parseAssistantProposal,
+  type AssistantCellRow,
+  type AssistantContext,
+  type AssistantPrompt,
+  type AssistantProposal,
+} from './assistant'
+export {
   DAY_TYPES,
   PRINT_ORDER,
   dayIndex,
@@ -15,6 +35,7 @@ export {
   addDays,
   cyclePosition,
   isoDate,
+  parseIsoDate,
   rotationDayIndex,
   weekOffset,
   weekStartOf,
