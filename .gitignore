@@ -33,3 +33,33 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# credentials, keys and whatever else must never reach a public repository
+*.pem
+*.key
+*.pfx
+*.p12
+*.jks
+*.keystore
+id_rsa*
+*.secret
+*.secrets
+config.json
+!apps/*/config.json
+
+# desktop app runtime output (also lives outside the repo in %APPDATA%\CityBusOps)
+apps/desktop/resources/
+apps/desktop/dist/
+apps/desktop/*.blockmap
+*.db.backup
+*.sqlite
+*.sqlite3
+backups/
+
+# local tooling output
+*.tmp
+*.bak
+.pnpm-debug.log*
+.pi/
+.claude/
+.vscode/settings.json

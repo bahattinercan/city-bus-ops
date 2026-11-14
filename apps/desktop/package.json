@@ -19,6 +19,6 @@
     "electron-builder": "^26.0.12",
     "typescript": "^5.9.3"
   },
-  "author": "Kütahya Şehir İçi Ulaşım",
-  "license": "UNLICENSED"
+  "author": "Bahattin Ercan",
+  "license": "Apache-2.0"
 }

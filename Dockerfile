@@ -1,4 +1,8 @@
-# Production image for the web app. Postgres/PostGIS is a separate service (compose file).
+# DEPRECATED — belongs to the retired Postgres/server variant (docs/06-deploy.md).
+# The app is a Windows desktop build with embedded SQLite now: this file expects
+# DATABASE_URL, which the code no longer reads. Kept as a record of the server
+# variant; the shipping path is docs/09-desktop-app.md.
+
 FROM node:22-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"

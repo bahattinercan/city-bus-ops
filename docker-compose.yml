@@ -1,3 +1,8 @@
+# DEPRECATED — belongs to the retired Postgres/server variant (docs/06-deploy.md).
+# The app is a Windows desktop build with embedded SQLite now: this file expects
+# DATABASE_URL, which the code no longer reads. Kept as a record of the server
+# variant; the shipping path is docs/09-desktop-app.md.
+
 services:
   db:
     image: postgis/postgis:17-3.5
