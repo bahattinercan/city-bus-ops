@@ -14,6 +14,7 @@ operator-facing UI is Turkish by default and also ships in English** (`apps/web/
 | `packages/db` | Drizzle schema, migrations, seed, GTFS/TODS import-export | contain rule logic |
 | `packages/gtfs` | GTFS + TODS read/write, validation | talk to the database |
 | `packages/xlsx` | printed-sheet layout and export (template v2.0 cell map) | know about the database |
+| `site/` | static landing page for GitHub Pages (no build, no dependencies) | gain a framework or a build step |
 | `docs/` | design; `legacy-*.md` are frozen records (see `docs/README.md`) | be edited to match new ideas — write a new doc instead |
 | `tests/` | cross-package golden files and e2e fixtures | hold application code |
 

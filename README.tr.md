@@ -4,6 +4,9 @@
 
 **Belediye şehir içi otobüs filosu için araç bloklama, şoför görevleri ve 7 haftalık rotasyon kuralı — tamamen çevrimdışı çalışan bir Windows masaüstü uygulaması.**
 
+**Website:** [bahattinercan.github.io/city-bus-ops](https://bahattinercan.github.io/city-bus-ops/) ·
+[English](README.md)
+
 ![Özet ekranı](docs/screenshots/tr-dashboard.png)
 
 Planlama, haftada iki kez haftalık görev planını yayınlar: hangi araç hangi hatta, hangi şoför
@@ -180,6 +183,7 @@ Demo veri, hesaplar ve elle gezinme: [`TESTING.md`](TESTING.md).
 ## Depo düzeni
 
 ```
+site                statik tanıtım sitesi, GitHub Pages'te yayınlanır
 apps/web            Next.js uygulaması: ekranlar, server action'lar, API, oturum
 apps/desktop        Electron kabuğu: yaşam döngüsü, yedekler, paketleme, self-test
 packages/domain     kurallar, rotasyon, plan üretimi, hücre dilbilgisi, asistan sözleşmesi
@@ -215,6 +219,7 @@ Seed'deki hat adları, plakalar ve şoför isimleri kurgusal demo verisidir.
 | [`docs/legacy-data-model-and-scheduler.md`](docs/legacy-data-model-and-scheduler.md) | Kural kataloğu R1–R18, rotasyon kanunu F1–F5 |
 | [`docs/legacy-excel-io.md`](docs/legacy-excel-io.md) | Basılı haftalık tablonun hücre haritası |
 | [`TESTING.md`](TESTING.md) | Demo veri, hesaplar, gezinme, smoke betiği |
+| [`site/README.md`](site/README.md) | Tanıtım sitesi: düzen, iki dil kuralı, önizleme ve probe |
 | [`README.md`](README.md) | Bu belgenin İngilizcesi |
 
 `legacy-*.md` belgeleri eski sistemden birebir alınmıştır ve Türkçe kalır: başka hiçbir yerde

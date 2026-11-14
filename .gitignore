@@ -57,6 +57,7 @@ apps/desktop/*.blockmap
 backups/
 
 # local tooling output
+.design-audit/
 *.tmp
 *.bak
 .pnpm-debug.log*

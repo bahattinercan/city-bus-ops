@@ -10,6 +10,9 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4.svg)](#the-desktop-app)
 [![Node](https://img.shields.io/badge/node-22%20LTS-5fa04e.svg)](.nvmrc)
 
+**Website:** [bahattinercan.github.io/city-bus-ops](https://bahattinercan.github.io/city-bus-ops/) ·
+[Türkçe README](README.tr.md)
+
 ![Overview screen](docs/screenshots/05-dashboard-en.png)
 
 A depot planner publishes the next week's duty plan twice a week: which bus covers which route,
@@ -245,6 +248,7 @@ tested, not just the workspace. Test accounts, seeded data and a manual walkthro
 ## Repository layout
 
 ```
+site                static landing site, deployed to GitHub Pages
 apps/web            Next.js app: screens, server actions, API routes, auth
 apps/desktop        Electron shell: lifecycle, backups, packaging, self-test
 packages/domain     rules, rotation, plan generation, cell grammar, assistant contract
@@ -268,6 +272,7 @@ tests/              cross-package golden files and e2e fixtures
 | [`docs/legacy-excel-io.md`](docs/legacy-excel-io.md) | Cell map of the printed weekly sheet |
 | [`AGENTS.md`](AGENTS.md) | Working rules for this repository |
 | [`TESTING.md`](TESTING.md) | Demo data, accounts, walkthrough, smoke script |
+| [`site/README.md`](site/README.md) | The landing site: layout, bilingual rule, preview and probe |
 | [`README.tr.md`](README.tr.md) | This document in Turkish |
 
 The `legacy-*.md` documents are verbatim imports from the retired system and stay in Turkish:
