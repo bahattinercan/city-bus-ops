@@ -1,0 +1,24 @@
+{
+  "name": "@citybus/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "City Bus Ops — Windows desktop shell (Electron + Next standalone server + SQLite)",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prepare:server": "node scripts/prepare-server.mjs",
+    "self-test": "electron . --self-test",
+    "start": "electron .",
+    "package": "node scripts/prepare-server.mjs && npm run build && electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.1",
+    "@types/node": "^22.19.0",
+    "electron": "^38.4.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.9.3"
+  },
+  "author": "Kütahya Şehir İçi Ulaşım",
+  "license": "UNLICENSED"
+}

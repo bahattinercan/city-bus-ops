@@ -46,15 +46,33 @@ walked through; it is not the operator's real schedule.
 
 ```bash
 pnpm install
-cp .env.example .env            # DATABASE_URL, SESSION_SECRET, CITYBUS_DEMO_PASSWORD
-ssh -f -N -L 5435:127.0.0.1:5435 mint   # Postgres/PostGIS on the Mint node
-pnpm db:migrate
-pnpm --filter @citybus/web dev          # http://localhost:3000
+cp .env.example .env            # CITYBUS_DB_FILE, SESSION_SECRET, CITYBUS_DEMO_PASSWORD
+pnpm --filter @citybus/web dev  # http://localhost:3000
 ```
 
-`DATABASE_URL` points at the dev container `citybus-postgres` (`127.0.0.1:5435` on the Mint
-node). Without it the app starts but every page that touches the database returns 500, and
-`/api/health` answers `503` — that is the intended behaviour, not a bug.
+SQLite is embedded: the app creates `data/citybus.db`, applies the migrations in
+`packages/db/drizzle-sqlite` on boot and seeds reference data on the first request. There is no
+tunnel and no database service to start; deleting the file gives a clean install.
+
+`pnpm db:migrate` still exists for applying migrations by hand; `pnpm db:generate` produces the
+next migration after a schema change.
+
+## Desktop (Windows) build
+
+```bash
+pnpm --filter @citybus/web build          # standalone server
+pnpm --filter @citybus/desktop package    # installer + portable exe in apps/desktop/release
+pnpm --filter @citybus/desktop self-test  # headless boot check: server + SQLite + health gate
+```
+
+The packaged app keeps its data in `%APPDATA%\CityBusOps` (`citybus.db`, `config.json`,
+`backups/`, `logs/`). Delete that folder to test a first run.
+
+**No password.** The desktop build sets `CITYBUS_LOCAL_MODE=1`: the app opens on the dashboard and
+the sidebar switches the working role (yönetici / planlama / santral / şoför, default admin) via a
+`cb_role` cookie. The password login only exists when `CITYBUS_LOCAL_MODE` is unset (web/server
+variant). `scripts/smoke.sh` detects which mode it is talking to and switches role with a cookie
+instead of a login form.
 
 ## End-to-end smoke script
 

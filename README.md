@@ -4,9 +4,11 @@ Operations system for a municipal city-bus fleet: network and timetable, vehicle
 driver duties and the weekly rotation law, driver app, and the printed weekly plan the
 operator already uses.
 
-Monorepo, TypeScript. Status: **M0–M6 complete** — network/timetable, vehicle blocking,
-weekly plan with the 7-week rotation law, rule engine (R1–R18 + L1–L5), driver records and
-run cutting, driver PWA, Excel output in the operator's sheet layout, audit trail, deploy.
+Monorepo, TypeScript. Status: **M0–M6 complete + Windows desktop build** — network/timetable,
+vehicle blocking, weekly plan with the 7-week rotation law, rule engine (R1–R18 + L1–L5),
+driver records and run cutting, driver screens, Excel output in the operator's sheet layout,
+audit trail, planning assistant, and an **Electron desktop app that runs entirely offline**
+(embedded SQLite, no server to administer) — see `docs/09-desktop-app.md`.
 
 | Screen | Who | What |
 | --- | --- | --- |
@@ -33,7 +35,7 @@ extension tables for what those standards do not model.
 | --- | --- |
 | Node | 22 LTS |
 | pnpm | 12 (via corepack) |
-| Postgres | 17 + PostGIS 3.5 (Docker) |
+| Database | SQLite (embedded, per install) — no server, no extension |
 
 ## Quick start
 
@@ -68,6 +70,19 @@ BASE=http://127.0.0.1:3000 scripts/smoke.sh  # end-to-end against a running serv
 Test accounts, seeded demo data and the walkthrough: [TESTING.md](TESTING.md).
 
 Database integration tests run only when `DATABASE_URL` is set; otherwise they skip.
+
+## Windows desktop build
+
+```bash
+pnpm --filter @citybus/web build          # Next standalone server
+pnpm --filter @citybus/desktop package    # stages the server, compiles the shell, builds installers
+```
+
+Output in `apps/desktop/release/`: `City Bus Ops-<version>-x64.exe` (NSIS installer, ~103 MB)
+and `City Bus Ops-<version>-portable.exe` (~93 MB). Data lives in
+`%APPDATA%\CityBusOps\citybus.db`, credentials in `config.json` next to it, backups rotate in
+`backups/`. `pnpm --filter @citybus/desktop self-test` boots the whole stack headlessly and
+prints a JSON report.
 
 ## Documentation
 
@@ -115,13 +130,24 @@ koruyup geri kalanı açık standartlar üzerine kuruyor: yayımlanan tarife iç
 operasyonel veri için **TODS 2.1**, standartların kapsamadığı kısımlar için kendi `x_`
 uzantı tablolarımız.
 
+## Windows masaüstü sürümü
+
+```bash
+pnpm --filter @citybus/web build          # Next standalone sunucusu
+pnpm --filter @citybus/desktop package    # sunucuyu paketler, kabuğu derler, kurulumları üretir
+```
+
+Çıktı `apps/desktop/release/` altında: `City Bus Ops-<sürüm>-x64.exe` (NSIS kurulum, ~103 MB) ve
+`City Bus Ops-<sürüm>-portable.exe` (~93 MB). Veri `%APPDATA%\CityBusOps\citybus.db` dosyasında,
+giriş bilgileri yanındaki `config.json` içinde, yedekler `backups/` klasöründe döner.
+
 ## Gereksinimler
 
 | Bileşen | Sürüm |
 | --- | --- |
 | Node | 22 LTS |
 | pnpm | 12 (corepack) |
-| Postgres | 17 + PostGIS 3.5 (Docker) |
+| Veritabanı | SQLite (gömülü, kurulum başına) — sunucu ve eklenti yok |
 
 ## Hızlı başlangıç
 

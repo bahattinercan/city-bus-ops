@@ -57,9 +57,38 @@ check() { # label actual expected
   if [ "$2" = "$3" ]; then echo "  ok   $1 ($2)"; else echo "  FAIL $1: got $2 expected $3"; fail=1; fi
 }
 
+# The desktop build runs in local mode: no password, the sidebar picks the role. The script
+# detects it by asking for "/" without a session — 200 means local mode, 307 means password mode.
+LOCAL_MODE=0
+if [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/")" = "200" ]; then LOCAL_MODE=1; fi
+
+role_for() {
+  case "$1" in
+    planlama*) printf 'planner' ;;
+    santral*) printf 'dispatcher' ;;
+    sofor*) printf 'driver' ;;
+    *) printf 'admin' ;;
+  esac
+}
+
+# Netscape cookie file: the desktop app reads the role from `cb_role`.
+role_jar() { # role jar-path
+  printf '# Netscape HTTP Cookie File
+127.0.0.1	FALSE	/	FALSE	0	cb_role	%s
+' "$1" > "$2"
+}
+
 login() {
   local email="$1" jar="$WORK/$2"
   rm -f "$jar"
+
+  if [ "$LOCAL_MODE" = "1" ]; then
+    local role; role=$(role_for "$email")
+    role_jar "$role" "$jar"
+    echo "  ok   local mode: $email → role $role"
+    return
+  fi
+
   curl -s -c "$jar" "$BASE/login" -o "$WORK/login.html"
   local aid; aid=$(action_id "$WORK/login.html" email '')
   [ -n "$aid" ] || { echo "  FAIL login form not found"; fail=1; return; }
@@ -91,7 +120,8 @@ curl -s -b "$WORK/planner.txt" "$BASE/plan?week=$WEEK" -o "$WORK/plan2.html"
 "$PYTHON" - "$(wpath "$WORK/plan2.html")" <<'PY'
 import sys
 html = open(sys.argv[1], encoding='utf-8').read()
-print('  info plan: YAT=%d x=%d locked=%d' % (html.count('>YAT<'), html.count('>x<'), html.count('🔒')))
+# the lock marker is a chip since the planetary-service redesign: <span class="badge soft">kilit</span>
+print('  info plan: YAT=%d x=%d locked=%d' % (html.count('>YAT<'), html.count('>x<'), html.count('>kilit<')))
 print('  info rules: %s' % ('no violation' if 'Kural ihlali yok' in html else 'see rule panel'))
 PY
 
@@ -120,8 +150,15 @@ echo "== public endpoints"
 check "GET /api/health" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/health")" 200
 check "GET /api/gtfs" "$(curl -s -o "$WORK/feed.zip" -w '%{http_code}' "$BASE/api/gtfs")" 200
 echo "  info gtfs: $(wc -c < "$WORK/feed.zip") bytes"
-check "GET /api/plan/xlsx without session" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/plan/xlsx?week=$WEEK")" 401
-check "GET / without session" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/")" 307
+if [ "$LOCAL_MODE" = "1" ]; then
+  echo "  info local mode: no login screen, no anonymous 401/307 guards"
+  check "GET / (local mode, no login)" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/")" 200
+  check "GET /api/plan/xlsx without a role cookie" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/plan/xlsx?week=$WEEK")" 200
+  check "driver role cannot open /plan" "$(curl -s -o /dev/null -w '%{http_code}' -b 'cb_role=driver' "$BASE/plan")" 307
+else
+  check "GET /api/plan/xlsx without session" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/plan/xlsx?week=$WEEK")" 401
+  check "GET / without session" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/")" 307
+fi
 
 echo
 if [ "$fail" = "0" ]; then echo "SMOKE OK"; else echo "SMOKE FAILED"; fi

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <title>City Bus Ops</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0; min-height: 100vh; display: grid; place-items: center;
+        background: #0a1420; color: #e6eef7;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      }
+      main { max-width: 560px; padding: 32px; border: 1px solid rgba(230,238,247,.15); background: #12202f; }
+      h1 { margin: 0 0 12px; font-family: 'Consolas', monospace; font-size: 22px; letter-spacing: .04em; text-transform: uppercase; }
+      p { margin: 0 0 12px; font-size: 14px; line-height: 1.6; color: #a4b6c8; }
+      code { font-family: 'Consolas', monospace; font-size: 12px; background: #0e1a28; padding: 2px 6px; border: 1px solid rgba(230,238,247,.15); }
+      button {
+        margin-top: 8px; height: 38px; padding: 0 14px; border: 0; cursor: pointer;
+        background: #2f6bc4; color: #fff; font-family: 'Consolas', monospace; font-size: 12px; letter-spacing: .06em;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Uygulama açılamadı</h1>
+      <p id="reason">Yerel sunucu başlatılamadı.</p>
+      <p id="detail"></p>
+      <p>Sunucu açıldıktan sonra sayfayı yeniden deneyin. Sorun sürerse uygulamayı kapatıp açın; günlük dosyası veri klasöründeki <code>logs</code> altındadır.</p>
+      <button onclick="location.href = location.href.replace(/^file:.*$/, 'about:blank')">Tekrar dene</button>
+    </main>
+    <script>
+      const params = new URLSearchParams(location.search)
+      if (params.get('reason')) document.getElementById('reason').textContent = params.get('reason')
+      if (params.get('detail')) document.getElementById('detail').textContent = params.get('detail')
+    </script>
+  </body>
+</html>

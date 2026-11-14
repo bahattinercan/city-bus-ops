@@ -17,6 +17,17 @@ apps/web/next-env.d.ts
 
 *.log
 npm-debug.log*
+
+# SQLite database of the desktop app (dev default path) and its WAL sidecars
+/data/
+*.db
+*.db-wal
+*.db-shm
+
+# desktop shell artefacts: staged server bundle and packaged installers
+apps/desktop/resources/server/
+apps/desktop/release/
+apps/desktop/release-build/
 .DS_Store
 Thumbs.db
 .idea/

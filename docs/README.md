@@ -5,6 +5,9 @@
 | `README.md` | active | this index |
 | `02-data-model.md` | active | three-layer model: operational master → generated GTFS/TODS → `x_` extensions |
 | `06-deploy.md` | active | deployment, demo accounts, backup, health, upgrade |
+| `07-design-system.md` | active | the single visual language (style-lab 141 `planetary-service`), token contract, verification |
+| `08-assistant.md` | active | bulk/AI cell editing: line syntax, model contract, guardrails, configuration |
+| `09-desktop-app.md` | **plan** | Windows desktop target: architecture options, SQLite port, phases and gates |
 | `legacy-domain-analysis.md` | **frozen record** | domain analysis of the 21 hand-filled sheet photos: code inventory (`9AT`, `-20`, `12.00`, `x`), operator decisions O1–O5 |
 | `legacy-data-model-and-scheduler.md` | **frozen record** | old data model, rule catalogue R1–R18, rotation law F1–F5, validation design |
 | `legacy-excel-io.md` | **frozen record** | real cell map of the printed weekly sheet (template v2.0), import/export rules |

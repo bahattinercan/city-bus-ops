@@ -13,7 +13,11 @@
     "build": "pnpm --filter @citybus/web build",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "db:generate": "pnpm --filter @citybus/db generate",
-    "db:migrate": "pnpm --filter @citybus/db migrate"
+    "db:migrate": "pnpm --filter @citybus/db migrate",
+    "desktop:server": "pnpm --filter @citybus/web build",
+    "desktop:package": "pnpm --filter @citybus/web build && pnpm --filter @citybus/desktop package",
+    "desktop:self-test": "pnpm --filter @citybus/desktop self-test",
+    "desktop:start": "pnpm --filter @citybus/desktop start"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

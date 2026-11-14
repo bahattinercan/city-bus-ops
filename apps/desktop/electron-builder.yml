@@ -1,0 +1,34 @@
+appId: tr.gov.kutahya.citybus
+productName: City Bus Ops
+copyright: Kütahya Şehir İçi Ulaşım
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - package.json
+extraResources:
+  - from: resources/server
+    to: server
+  - from: resources/error.html
+    to: error.html
+asar: true
+npmRebuild: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  # v1 ships with the default Electron icon; a branded .ico is a release-checklist item.
+  artifactName: ${productName}-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: City Bus Ops
+  deleteAppDataOnUninstall: false
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}

@@ -31,28 +31,13 @@ jobs:
       - name: Verify (lint + typecheck + test + build)
         run: pnpm verify
 
-  database:
-    name: database (postgres + postgis)
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgis/postgis:17-3.5
-        env:
-          POSTGRES_DB: citybus
-          POSTGRES_USER: citybus
-          POSTGRES_PASSWORD: citybus
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U citybus -d citybus"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
+  desktop:
+    name: desktop shell (windows)
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v7
 
-      # Version comes from package.json "packageManager" — specifying it twice fails the action.
       - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v7
@@ -63,12 +48,16 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Migrate
-        env:
-          DATABASE_URL: postgres://citybus:citybus@127.0.0.1:5432/citybus
-        run: pnpm db:migrate
+      - name: Build the web server (standalone)
+        run: pnpm --filter @citybus/web build
 
-      - name: Test against the database
-        env:
-          DATABASE_URL: postgres://citybus:citybus@127.0.0.1:5432/citybus
-        run: pnpm test
+      - name: Stage the server, compile the shell
+        run: |
+          pnpm --filter @citybus/desktop prepare:server
+          pnpm --filter @citybus/desktop build
+
+      # No window is opened: this boots the Next server on a free loopback port, waits for
+      # /api/health, and prints a JSON report. A missing native module or migration folder
+      # fails the job.
+      - name: Boot the whole stack headlessly
+        run: pnpm --filter @citybus/desktop self-test

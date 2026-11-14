@@ -1,4 +1,10 @@
-# 06 — Deploy
+# 06 — Deploy (retired)
+
+> **Retired 2026-11-13.** The product is now a Windows desktop application with embedded SQLite
+> (`docs/09-desktop-app.md`). The Docker/Postgres path below is kept as a record of the server
+> variant and no longer matches the code: the app expects `CITYBUS_DB_FILE`, not `DATABASE_URL`.
+> Do not deploy from this document without restoring the Postgres dialect first.
+
 
 ## Target
 
